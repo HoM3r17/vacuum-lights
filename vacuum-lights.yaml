@@ -1,0 +1,97 @@
+blueprint:
+  name: Synchronisation Lumières & Robot Aspirateur
+  description: >
+    Allume la lumière de la pièce où se trouve le robot et éteint celle de la pièce quittée.
+    Éteint également toutes les lumières 5 minutes après retour au dock.
+  domain: automation
+
+  input:
+
+    robot_room_sensor:
+      name: Capteur de localisation du robot
+      selector:
+        entity:
+          domain: sensor
+
+    room_light_mapping:
+      name: Association pièce -> lumière
+      description: Associez les valeurs du capteur aux entités lumières correspondantes
+      selector:
+        object: {}
+
+    turn_off_on_dock:
+      name: Éteindre toutes les lumières quand robot docké
+      default: true
+      selector:
+        boolean: {}
+
+    dock_states:
+      name: États du capteur correspondant au dock/charge
+      default:
+        - dock
+        - charging
+      selector:
+        object: {}
+
+mode: restart
+
+variables:
+  room_to_light_map: !input room_light_mapping
+  docking_states: !input dock_states
+  new_room: "{{ states( (input.robot_room_sensor) ) }}"
+  old_room: "{{ trigger.from_state.state if trigger.from_state else '' }}"
+  new_light: "{{ room_to_light_map.get(new_room) }}"
+  old_light: "{{ room_to_light_map.get(old_room) }}"
+  lights_list: "{{ room_to_light_map.values() | list }}"
+
+trigger:
+  - platform: state
+    entity_id: !input robot_room_sensor
+
+action:
+
+  # 1. Allumer lumière pièce actuelle
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ new_light is not none }}"
+          - condition: template
+            value_template: "{{ new_room not in docking_states }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ new_light }}"
+            data:
+              brightness_pct: 100
+              transition: 1
+
+  # 2. Éteindre lumière pièce quittée
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ old_light is not none }}"
+          - condition: template
+            value_template: "{{ new_room != old_room }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id: "{{ old_light }}"
+            data:
+              transition: 1
+
+  # 3. Si docké: attendre puis tout éteindre
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ new_room in docking_states }}"
+          - condition: template
+            value_template: "{{ turn_off_on_dock }}"
+        sequence:
+          - delay: "00:05:00"
+          - condition: template
+            value_template: "{{ states((input.robot_room_sensor)) in docking_states }}"
+          - service: light.turn_off
+            target:
+              entity_id: "{{ lights_list }}"
+            data:
+              transition: 2
