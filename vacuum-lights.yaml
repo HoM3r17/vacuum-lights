@@ -1,5 +1,5 @@
 blueprint:
-  name: Lumières robot aspirateur (absence + DND + luminosité)
+  name: Lumières robot aspirateur (absence + DND + luminosité) 0.5
   description: >
     Allume/éteint les lumières selon la pièce où se trouve le robot.
     Options : présence, DND, seuil de luminosité, luminosité fixe/précédente.
