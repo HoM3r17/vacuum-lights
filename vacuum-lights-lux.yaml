@@ -59,13 +59,15 @@ trigger:
 
 action:
   - variables:
-      room: "{{ states(!input room_sensor) }}"
-      previous_room: "{{ trigger.from_state.state if trigger.entity_id == !input room_sensor else '' }}"
-      vacuum_state: "{{ states(!input vacuum_entity) }}"
+      room_sensor: !input room_sensor
+      vacuum_entity: !input vacuum_entity
       lights_map: "{{ !input lights_mapping_text | from_json }}"
       presence_entities: !input presence_entities
       light_sensor: !input light_sensor
       light_threshold: !input light_threshold
+      room: "{{ states(room_sensor) }}"
+      previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
+      vacuum_state: "{{ states(vacuum_entity) }}"
 
   - choose:
       - conditions:
@@ -100,7 +102,7 @@ action:
                       entity_id: "{{ lights_map[room] }}"
               - conditions:
                   - condition: template
-                    value_template: "{{ trigger.entity_id == !input room_sensor and vacuum_state in ['cleaning','returning'] }}"
+                    value_template: "{{ trigger.entity_id == room_sensor and vacuum_state in ['cleaning','returning'] }}"
                 sequence:
                   - choose:
                       - conditions:
