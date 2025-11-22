@@ -45,10 +45,12 @@ blueprint:
     presence_entities:
       name: Entites de presence
       description: 'Liste person.* si presence activée'
+      default: []
       selector:
         target:
           entity:
             domain: person
+          multiple: true
 
     presence_state:
       name: Etat = present
@@ -99,6 +101,7 @@ blueprint:
           entity:
             domain: sensor
             device_class: illuminance
+          multiple: false
 
     luminosity_threshold:
       name: Seuil lux
@@ -191,30 +194,28 @@ variables:
 
   # Presence optionnelle
   is_everyone_absent: >
-    {% if not enable_presence %}
+    {% if not enable_presence or presence_entities | length == 0 %}
       true
     {% else %}
-      {% set t = input('presence_entities') %}
-      {% set present = false %}
-      {% for p in t.entity_id %}
+      {% set absent = true %}
+      {% for p in presence_entities.entity_id %}
         {% if states(p) == presence_state %}
-          {% set present = true %}
+          {% set absent = false %}
         {% endif %}
       {% endfor %}
-      {{ not present }}
+      {{ absent }}
     {% endif %}
 
   # Luminosité optionnelle
   is_too_bright: >
-    {% if not enable_lux %}
+    {% if not enable_lux or luminosity_sensor is not defined %}
       false
     {% else %}
-      {% set t = input('luminosity_sensor') %}
-      {% set sensor = t.entity_id[0] if t and t.entity_id|length > 0 else none %}
-      {% if sensor == none %}
+      {% set lux = luminosity_sensor.entity_id[0] if luminosity_sensor.entity_id|length > 0 else none %}
+      {% if lux == none %}
         false
       {% else %}
-        {{ states(sensor) | float > luminosity_threshold }}
+        {{ states(lux) | float > luminosity_threshold }}
       {% endif %}
     {% endif %}
 
