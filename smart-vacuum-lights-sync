@@ -1,5 +1,5 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.0
+  name: Smart Vacuum & Light Sync V1.001
   description: "Synchronise les lumières avec le robot aspirateur."
   domain: automation
   input:
@@ -70,9 +70,9 @@ action:
       light_sensor: !input light_sensor
       light_threshold: !input light_threshold
       light_brightness: !input light_brightness
-      room: "{{ states(room_sensor).state }}"
+      room: "{{ states[room_sensor].state }}"
       previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
-      vacuum_state: "{{ states(vacuum_entity) }}"
+      vacuum_state: "{{ states[vacuum_entity].state }}"
 
   - choose:
       - conditions:
