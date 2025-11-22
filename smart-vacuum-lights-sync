@@ -1,0 +1,137 @@
+blueprint:
+  name: Smart Vacuum & Light Sync *Aspirateur et Lumières synchronisés*
+  description: >
+    Sync lights with your vacuum robot.
+    *Synchronise les lumières avec le robot aspirateur.*
+  domain: automation
+  input:
+    vacuum_entity:
+      name: Vacuum entity *Entité aspirateur*
+      description: Vacuum robot entity (vacuum.xxx).
+        *Entité du robot aspirateur (vacuum.xxx).*
+      selector:
+        entity:
+          domain: vacuum
+    room_sensor:
+      name: Room sensor *Capteur de pièce*
+      description: Sensor entity indicating the robot's current room.
+        *Entité sensor indiquant la pièce actuelle du robot.*
+      selector:
+        entity:
+          domain: sensor
+    lights_mapping_text:
+      name: Room → Light mapping (JSON) *Mapping pièces → lumières (JSON)*
+      description: >
+        Paste a JSON dictionary, e.g.:
+        {"WC":"light.lumiere_wc","Living Room":"light.lumieres_salon"}
+        *Collez un dictionnaire JSON, par ex. :
+        {"WC":"light.lumiere_wc","Salon":"light.lumieres_salon"}*
+      selector:
+        text: {}
+    presence_entities:
+      name: Presence entities (optional) *Entités de présence (optionnel)*
+      description: >
+        List of presence entities (person.xxx). If empty, no presence condition.
+        *Liste des entités de présence (person.xxx). Si vide, pas de condition de présence.*
+      default: []
+      selector:
+        entity:
+          domain: person
+          multiple: true
+    light_sensor:
+      name: Light sensor (optional) *Capteur de luminosité (optionnel)*
+      description: >
+        Light sensor entity (lux). If empty, no luminosity condition.
+        *Entité sensor de luminosité (lux). Si vide, pas de condition de luminosité.*
+      default: ""
+      selector:
+        entity:
+          domain: sensor
+    light_threshold:
+      name: Light threshold (lux) *Seuil de luminosité (lux)*
+      description: >
+        Value above which the automation will not run.
+        *Valeur au-dessus de laquelle le scénario ne s’exécute pas.*
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 10000
+          unit_of_measurement: lux
+
+trigger:
+  - platform: state
+    entity_id: !input room_sensor
+  - platform: state
+    entity_id: !input vacuum_entity
+
+action:
+  - variables:
+      room_sensor: !input room_sensor
+      vacuum_entity: !input vacuum_entity
+      lights_map: !input lights_mapping_text
+      presence_entities: !input presence_entities
+      light_sensor: !input light_sensor
+      light_threshold: !input light_threshold
+      room: "{{ states(room_sensor) }}"
+      previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
+      vacuum_state: "{{ states(vacuum_entity) }}"
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {% set presence_ok = (
+                presence_entities | length == 0 or
+                (expand(presence_entities) | selectattr('state','eq','home') | list | length == 0)
+              ) %}
+              {% set lux_ok = (
+                light_sensor == "" or
+                (states(light_sensor) | float(0) <= light_threshold)
+              ) %}
+              {{ presence_ok and lux_ok }}
+        sequence:
+          - choose:
+              # Case 1: vacuum starts or resumes
+              - conditions:
+                  - condition: template
+                    value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
+                sequence:
+                  - service: light.turn_on
+                    data:
+                      brightness_pct: 100
+                    target:
+                      entity_id: "{{ (lights_map | from_json)[room] }}"
+              # Case 2: vacuum stops, pauses, errors or docks
+              - conditions:
+                  - condition: template
+                    value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in (lights_map | from_json) }}"
+                sequence:
+                  - service: light.turn_off
+                    target:
+                      entity_id: "{{ (lights_map | from_json)[room] }}"
+              # Case 3: room change during cleaning
+              - conditions:
+                  - condition: template
+                    value_template: "{{ trigger.entity_id == room_sensor and vacuum_state in ['cleaning','returning'] }}"
+                sequence:
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ room in (lights_map | from_json) }}"
+                        sequence:
+                          - service: light.turn_on
+                            data:
+                              brightness_pct: 100
+                            target:
+                              entity_id: "{{ (lights_map | from_json)[room] }}"
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ previous_room in (lights_map | from_json) }}"
+                        sequence:
+                          - service: light.turn_off
+                            target:
+                              entity_id: "{{ (lights_map | from_json)[previous_room] }}"
+
+mode: restart
