@@ -11,21 +11,21 @@ blueprint:
     ###########################################################################
     robot_entity:
       name: Robot aspirateur
-      description: 'Ex : vacuum.l40s_pro_ultra'
+      description: "Ex : vacuum.l40s_pro_ultra"
       selector:
         entity:
           domain: vacuum
 
     current_room_sensor:
       name: Capteur pièce actuelle
-      description: 'Ex : sensor.l40s_pro_ultra_current_room'
+      description: "Ex : sensor.l40s_pro_ultra_current_room"
       selector:
         entity:
           domain: sensor
 
     room_light_mapping:
       name: Mapping pièces vers lumières
-      description: 'Ajouter autant de pièces que nécessaire, clé = pièce, valeur = lumière'
+      description: "Ajouter autant de pièces que nécessaire, clé = pièce, valeur = lumière"
       selector:
         object: {}
 
@@ -34,14 +34,13 @@ blueprint:
     ###########################################################################
     enable_presence_check:
       name: Activer gestion de présence
-      description: 'Si activée, l''allumage est bloqué si quelqu''un est présent.'
       default: false
       selector:
-        boolean:
+        boolean: {}
 
     presence_entities:
       name: Entités de présence
-      description: 'Liste des entités de présence (ex: person.gwen, person.vincent)'
+      description: "Liste des entités de présence (ex: person.gwen, person.vincent)"
       default: []
       selector:
         entity:
@@ -50,46 +49,44 @@ blueprint:
 
     presence_state:
       name: État = présent
-      description: 'Ex : Maison'
+      description: "Ex : Maison"
       default: "Maison"
       selector:
-        text:
+        text: {}
 
     ###########################################################################
     # DND (optionnelle)
     ###########################################################################
     enable_dnd:
       name: Activer DND
-      description: 'Bloque l''automatisation pendant la plage horaire.'
       default: false
       selector:
-        boolean:
+        boolean: {}
 
     dnd_start_time:
       name: Début DND
       default: "22:30"
       selector:
-        time:
+        time: {}
 
     dnd_end_time:
       name: Fin DND
       default: "08:00"
       selector:
-        time:
+        time: {}
 
     ###########################################################################
     # LUMINOSITÉ (optionnelle)
     ###########################################################################
     enable_luminosity_check:
       name: Activer contrôle luminosité
-      description: 'N''allume que si la pièce est sombre.'
       default: false
       selector:
-        boolean:
+        boolean: {}
 
     luminosity_sensor:
       name: Capteur de luminosité (optionnel)
-      description: 'Laisser vide si non utilisé.'
+      description: "Laisser vide si non utilisé"
       selector:
         entity:
           domain: sensor
@@ -97,7 +94,6 @@ blueprint:
 
     luminosity_threshold:
       name: Seuil lux
-      description: 'Allumage si luminosité < seuil.'
       default: 50
       selector:
         number:
@@ -110,19 +106,17 @@ blueprint:
     ###########################################################################
     brightness_mode:
       name: Mode luminosité
-      description: 'Fixe ou dernière valeur utilisée.'
       default: "fixed"
       selector:
         select:
           options:
-            - label: 'Conserver précédente'
+            - label: "Conserver précédente"
               value: "previous"
-            - label: 'Fixer un pourcentage'
+            - label: "Fixer un pourcentage"
               value: "fixed"
 
     brightness_value:
       name: Pourcentage fixe
-      description: 'Utilisé si le mode fixe est sélectionné.'
       default: 100
       selector:
         number:
