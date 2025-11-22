@@ -1,5 +1,5 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1
+  name: Smart Vacuum & Light Sync V1.0
   description: "Synchronise les lumières avec le robot aspirateur."
   domain: automation
   input:
