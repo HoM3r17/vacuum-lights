@@ -1,5 +1,5 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.00
+  name: Smart Vacuum & Light Sync V1.001
   description: "Synchronise les lumières avec le robot aspirateur."
   domain: automation
   input:
@@ -72,7 +72,7 @@ action:
       light_brightness: !input light_brightness
       room: "{{ states(room_sensor).state }}"
       previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
-      vacuum_state: "{{ states(vacuum_entity).state }}"
+      vacuum_state: "{{ states(vacuum_entity) }}"
 
   - choose:
       - conditions:
@@ -94,11 +94,23 @@ action:
                   - condition: template
                     value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
                 sequence:
-                  - service: light.turn_on
-                    data:
-                      brightness_pct: "{{ light_brightness | int if light_brightness != '' else 100 }}"
-                    target:
-                      entity_id: "{{ (lights_map | from_json)[room] }}"
+                  - choose:
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ light_brightness != '' }}"
+                        sequence:
+                          - service: light.turn_on
+                            data:
+                              brightness_pct: "{{ light_brightness | int }}"
+                            target:
+                              entity_id: "{{ (lights_map | from_json)[room] }}"
+                      - conditions:
+                          - condition: template
+                            value_template: "{{ light_brightness == '' }}"
+                        sequence:
+                          - service: light.turn_on
+                            target:
+                              entity_id: "{{ (lights_map | from_json)[room] }}"
 
               # Case 2: vacuum en pause/erreur/idle/dock → OFF
               - conditions:
@@ -120,11 +132,23 @@ action:
                           - condition: template
                             value_template: "{{ room in (lights_map | from_json) }}"
                         sequence:
-                          - service: light.turn_on
-                            data:
-                              brightness_pct: "{{ light_brightness | int if light_brightness != '' else 100 }}"
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
+                          - choose:
+                              - conditions:
+                                  - condition: template
+                                    value_template: "{{ light_brightness != '' }}"
+                                sequence:
+                                  - service: light.turn_on
+                                    data:
+                                      brightness_pct: "{{ light_brightness | int }}"
+                                    target:
+                                      entity_id: "{{ (lights_map | from_json)[room] }}"
+                              - conditions:
+                                  - condition: template
+                                    value_template: "{{ light_brightness == '' }}"
+                                sequence:
+                                  - service: light.turn_on
+                                    target:
+                                      entity_id: "{{ (lights_map | from_json)[room] }}"
                   # Éteindre la pièce précédente
                   - choose:
                       - conditions:
