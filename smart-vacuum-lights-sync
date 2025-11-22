@@ -6,7 +6,7 @@ blueprint:
   input:
     vacuum_entity:
       name: Vacuum entity
-      description: Vacuum robot entity (vacuum.xxx).
+      description: Vacuum robot entity (e.g. "vacuum.l40s_pro_ultra").
       selector:
         entity:
           domain: vacuum
@@ -103,9 +103,7 @@ action:
                 sequence:
                   - service: light.turn_on
                     data:
-                      {% if light_brightness != "" %}
-                      brightness_pct: "{{ light_brightness | int }}"
-                      {% endif %}
+                      brightness_pct: "{{ light_brightness | int if light_brightness != '' else none }}"
                     target:
                       entity_id: "{{ (lights_map | from_json)[room] }}"
               # Case 2: vacuum stops, pauses, errors or docks
@@ -128,9 +126,7 @@ action:
                         sequence:
                           - service: light.turn_on
                             data:
-                              {% if light_brightness != "" %}
-                              brightness_pct: "{{ light_brightness | int }}"
-                              {% endif %}
+                              brightness_pct: "{{ light_brightness | int if light_brightness != '' else none }}"
                             target:
                               entity_id: "{{ (lights_map | from_json)[room] }}"
                   - choose:
