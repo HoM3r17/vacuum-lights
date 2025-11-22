@@ -138,8 +138,8 @@ variables:
   previous_light: "{{ mapping.get(previous_room) }}"
   robot_state: "{{ states(robot) }}"
 
-  is_running: "{{ robot_state == 'cleaning' }}"
-  is_paused_or_docked: "{{ robot_state in ['paused','docked','returning'] }}"
+  is_running: "{{ robot_state in ['cleaning','returning','sweeping'] }}"
+  is_paused_or_docked: "{{ robot_state in ['paused','docked'] }}"
   is_everyone_absent: >
     {% if not enable_presence %}
       {{ true }}
