@@ -1,5 +1,5 @@
 blueprint:
-  name: Smart Vacuum & Light Sync
+  name: Smart Vacuum & Light Sync 0.1
   description: >
     Sync lights with your vacuum robot.
   domain: automation
