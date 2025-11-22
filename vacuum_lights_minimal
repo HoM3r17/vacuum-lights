@@ -80,6 +80,7 @@ blueprint:
 
     luminosity_sensor:
       name: Capteur de luminosité
+      default: ""
       selector:
         entity:
           domain: sensor
