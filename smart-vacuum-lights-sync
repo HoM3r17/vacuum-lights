@@ -6,7 +6,7 @@ blueprint:
   input:
     vacuum_entity:
       name: Vacuum entity
-      description: Vacuum robot entity (e.g. "vacuum.l40s_pro_ultra").
+      description: Vacuum robot entity (vacuum.xxx).
       selector:
         entity:
           domain: vacuum
