@@ -1,5 +1,5 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.0
+  name: Smart Vacuum & Light Sync V1.1
   description: >
     Sync lights with your vacuum robot.
   domain: automation
@@ -131,6 +131,7 @@ action:
                   - condition: template
                     value_template: "{{ trigger.entity_id == room_sensor and vacuum_state in ['cleaning','returning'] }}"
                 sequence:
+                  # Allumer la nouvelle pièce
                   - choose:
                       - conditions:
                           - condition: template
@@ -153,10 +154,13 @@ action:
                                   - service: light.turn_on
                                     target:
                                       entity_id: "{{ (lights_map | from_json)[room] }}"
+                  # Éteindre la pièce précédente si différente
                   - choose:
                       - conditions:
                           - condition: template
-                            value_template: "{{ previous_room in (lights_map | from_json) }}"
+                            value_template: >
+                              {{ previous_room != '' and previous_room != room
+                                 and previous_room in (lights_map | from_json) }}
                         sequence:
                           - service: light.turn_off
                             target:
