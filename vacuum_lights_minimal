@@ -8,21 +8,18 @@ blueprint:
   input:
     robot_entity:
       name: Robot aspirateur
-      description: Ex : vacuum.l40s_pro_ultra
       selector:
         entity:
           domain: vacuum
 
     current_room_sensor:
       name: Capteur pièce actuelle
-      description: Ex : sensor.l40s_pro_ultra_current_room
       selector:
         entity:
           domain: sensor
 
     room_light_mapping:
       name: Mapping pièces vers lumières
-      description: Ajouter autant de pièces que nécessaire, format clé=pièce, valeur=lumière
       selector:
         object:
           multiple: true
@@ -135,14 +132,14 @@ variables:
   luminosity_threshold: !input luminosity_threshold
   current_room: "{{ states(room_sensor) }}"
   previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else none }}"
-  previous_light: "{{ mapping.get(previous_room) }}"
+  previous_light: "{{ mapping.get(previous_room) if previous_room in mapping else none }}"
   robot_state: "{{ states(robot) }}"
 
-  is_running: "{{ robot_state in ['cleaning','returning','sweeping'] }}"
+  is_running: "{{ robot_state in ['cleaning','sweeping','returning'] }}"
   is_paused_or_docked: "{{ robot_state in ['paused','docked'] }}"
   is_everyone_absent: >
     {% if not enable_presence %}
-      {{ true }}
+      true
     {% else %}
       {% set absent = true %}
       {% for p in presence_entities %}
@@ -154,13 +151,13 @@ variables:
     {% endif %}
   is_too_bright: >
     {% if not enable_lux or not luminosity_sensor %}
-      {{ false }}
+      false
     {% else %}
       {{ states(luminosity_sensor) | float(default=0) > luminosity_threshold }}
     {% endif %}
   is_dnd_active: >
     {% if not enable_dnd %}
-      {{ false }}
+      false
     {% else %}
       {% set now_m = now().hour*60 + now().minute %}
       {% set s = str(dnd_start_time).split(':') %}
@@ -215,13 +212,6 @@ action:
           - "{{ is_everyone_absent }}"
           - "{{ not is_dnd_active }}"
         sequence:
-          - choose:
-              - conditions: "{{ robot_state == 'docked' }}"
-                sequence:
-                  - delay: "00:00:15"
-              - conditions: "{{ robot_state == 'paused' }}"
-                sequence:
-                  - delay: "00:01:00"
           - service: light.turn_off
             target:
               entity_id: "{{ mapping.get(current_room) }}"
