@@ -3,10 +3,7 @@ blueprint:
   description: >
     Allume et éteint les lumières en fonction de la pièce où se trouve le robot,
     uniquement si tous les utilisateurs sélectionnés sont absents.
-    Options :
-    - DND (plage horaire de désactivation)
-    - Seuil de luminosité (pour éviter d'allumer en plein jour)
-    - Choix de la luminosité à l'allumage (conserver ou définir un %)
+    Options : DND, seuil de luminosité, choix de la luminosité à l'allumage.
   domain: automation
   input:
     robot_entity:
@@ -23,16 +20,18 @@ blueprint:
           domain: sensor
     room_light_mapping:
       name: Mapping pièces/lumières
-      description: Associe chaque pièce à son entité lumière (ex: {"Salon": "light.lumiere_salon"})
+      description: >
+        Associe chaque pièce à son entité lumière.
+        Format : {"Pièce 1": "light.entité1", "Pièce 2": "light.entité2"}
       selector:
-        object:
+        text:
     presence_entities:
       name: Entités de présence
       description: Liste des entités indiquant la présence des utilisateurs (ex: person.gwen, person.vincent)
       selector:
-        target:
-          entity:
-            domain: person
+        entity:
+          multiple: true
+          domain: person
     presence_state:
       name: État de présence
       description: Valeur de l'entité quand l'utilisateur est présent (ex: "Maison")
@@ -40,7 +39,7 @@ blueprint:
       selector:
         text:
     enable_dnd:
-      name: Activer le mode DND (Do Not Disturb)
+      name: Activer le mode DND
       description: Désactive l'automatisation pendant une plage horaire (ex: la nuit)
       default: false
       selector:
@@ -80,6 +79,7 @@ blueprint:
           max: 10000
           step: 10
           unit_of_measurement: "lux"
+          mode: box
     brightness_mode:
       name: Mode de luminosité à l'allumage
       description: Choisir entre "Conserver la luminosité précédente" ou "Définir un pourcentage fixe"
@@ -87,10 +87,8 @@ blueprint:
       selector:
         select:
           options:
-            - label: "Conserver la luminosité précédente"
-              value: "previous"
-            - label: "Définir un pourcentage fixe"
-              value: "fixed"
+            - "Conserver la luminosité précédente"
+            - "Définir un pourcentage fixe"
     brightness_value:
       name: Pourcentage de luminosité (1-100)
       description: Pourcentage de luminosité si le mode "fixe" est sélectionné
@@ -101,6 +99,7 @@ blueprint:
           max: 100
           step: 1
           unit_of_measurement: "%"
+          mode: box
 
 mode: single
 trigger:
@@ -131,6 +130,7 @@ variables:
     {% else %}
       {{ none }}
     {% endif %}
+  room_light_mapping: !input room_light_mapping
   is_running: >-
     {{ state_attr(robot_entity, 'running') or
        state_attr(robot_entity, 'zone_cleaning') or
@@ -151,14 +151,14 @@ variables:
   is_resuming: >-
     {{ was_paused_or_docked and is_running }}
   previous_light: >-
-    {% if previous_room in room_light_mapping %}
-      {{ room_light_mapping[previous_room] }}
+    {% if previous_room in room_light_mapping|from_json %}
+      {{ room_light_mapping|from_json[previous_room] }}
     {% else %}
       {{ none }}
     {% endif %}
   is_everyone_absent: >-
     {% set absent = true %}
-    {% for entity_id in presence_entities.entity_id %}
+    {% for entity_id in presence_entities %}
       {% if states(entity_id) == presence_state %}
         {% set absent = false %}
       {% endif %}
@@ -180,37 +180,28 @@ variables:
 
 action:
   - choose:
-      # Allumer la lumière de la pièce actuelle si :
-      # - le robot est actif
-      # - tout le monde est absent
-      # - DND inactif
-      # - luminosité insuffisante (si activé)
       - conditions:
-          - "{{ current_room in room_light_mapping }}"
+          - "{{ current_room in room_light_mapping|from_json }}"
           - "{{ is_running or is_resuming }}"
           - "{{ is_everyone_absent }}"
           - "{{ not is_dnd_active }}"
           - "{{ not is_too_bright }}"
         sequence:
           - choose:
-              - conditions: "{{ brightness_mode == 'fixed' }}"
+              - conditions: "{{ brightness_mode == 'Définir un pourcentage fixe' }}"
                 sequence:
                   - service: light.turn_on
                     target:
-                      entity_id: "{{ room_light_mapping[current_room] }}"
+                      entity_id: "{{ room_light_mapping|from_json[current_room] }}"
                     data:
                       brightness_pct: !input brightness_value
-              - conditions: "{{ brightness_mode == 'previous' }}"
+              - conditions: "{{ brightness_mode == 'Conserver la luminosité précédente' }}"
                 sequence:
                   - service: light.turn_on
                     target:
-                      entity_id: "{{ room_light_mapping[current_room] }}"
+                      entity_id: "{{ room_light_mapping|from_json[current_room] }}"
 
   - choose:
-      # Éteindre la lumière de la pièce précédente immédiatement si :
-      # - le robot change de pièce
-      # - tout le monde est absent
-      # - DND inactif
       - conditions:
           - "{{ previous_light is not none }}"
           - "{{ previous_room != current_room }}"
@@ -223,12 +214,8 @@ action:
               entity_id: "{{ previous_light }}"
 
   - choose:
-      # Éteindre la lumière de la pièce actuelle si :
-      # - le robot est en pause/charge/arrêté
-      # - tout le monde est absent
-      # - DND inactif
       - conditions:
-          - "{{ current_room in room_light_mapping }}"
+          - "{{ current_room in room_light_mapping|from_json }}"
           - "{{ is_paused_or_docked }}"
           - "{{ is_everyone_absent }}"
           - "{{ not is_dnd_active }}"
@@ -241,4 +228,4 @@ action:
               {% endif %}
           - service: light.turn_off
             target:
-              entity_id: "{{ room_light_mapping[current_room] }}"
+              entity_id: "{{ room_light_mapping|from_json[current_room] }}"
