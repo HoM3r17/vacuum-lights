@@ -1,8 +1,8 @@
 blueprint:
   name: Lumières robot aspirateur (absence + DND + luminosité)
   description: >
-    Allume/éteint les lumières selon la pièce détectée par le robot.
-    Options : présence, luminosité, DND, luminosité fixe ou précédente.
+    Allume/éteint les lumières selon la pièce où se trouve le robot.
+    Options : présence, DND, seuil de luminosité, luminosité fixe/précédente.
   domain: automation
 
   ###########################################################################
@@ -18,7 +18,7 @@ blueprint:
           domain: vacuum
 
     current_room_sensor:
-      name: Capteur de pièce actuelle
+      name: Capteur pièce actuelle
       description: Ex : sensor.robot_current_room
       selector:
         entity:
@@ -26,7 +26,7 @@ blueprint:
 
     room_light_mapping:
       name: Mapping pièces → lumières
-      description: Format : {"Salon":"light.salon","Cuisine":"light.cuisine"}
+      description: Ex : {"Salon":"light.salon","Cuisine":"light.cuisine"}
       default: {}
       selector:
         object:
@@ -45,7 +45,7 @@ blueprint:
 
     presence_entities:
       name: Entités de présence
-      description: Ex : person.vincent, person.gwen
+      description: Liste person.* (si présence activée)
       selector:
         target:
           entity:
@@ -64,8 +64,8 @@ blueprint:
   ###########################################################################
 
     enable_dnd:
-      name: Activer le DND
-      description: Empêche tout allumage durant la plage horaire.
+      name: Activer DND
+      description: Bloque l’automatisation sur une plage horaire.
       default: false
       selector:
         boolean:
@@ -95,12 +95,13 @@ blueprint:
         boolean:
 
     luminosity_sensor:
-      name: Capteur de luminosité
-      description: Facultatif si contrôle désactivé.
+      name: Capteur de luminosité (optionnel)
+      description: Laisser vide si non utilisé.
       selector:
-        entity:
-          domain: sensor
-          device_class: illuminance
+        target:
+          entity:
+            domain: sensor
+            device_class: illuminance
 
     luminosity_threshold:
       name: Seuil lux
@@ -113,12 +114,12 @@ blueprint:
 
 
   ###########################################################################
-  # 💡 MODE DE LUMINOSITÉ
+  # 💡 LUMINOSITÉ DES LAMPES
   ###########################################################################
 
     brightness_mode:
       name: Mode luminosité
-      description: Fixe ou précédente.
+      description: Fixe ou dernière valeur
       default: "fixed"
       selector:
         select:
@@ -147,13 +148,10 @@ mode: restart
 trigger:
   - platform: state
     entity_id: !input robot_entity
-
   - platform: state
     entity_id: !input current_room_sensor
-
   - platform: time
     at: !input dnd_start_time
-
   - platform: time
     at: !input dnd_end_time
 
@@ -176,17 +174,20 @@ variables:
   luminosity_threshold: !input luminosity_threshold
 
   current_room: "{{ states(room_sensor) }}"
+
   previous_room: >
     {% if trigger.platform == 'state' and trigger.entity_id == room_sensor %}
       {{ trigger.from_state.state }}
     {% else %}
       {{ none }}
     {% endif %}
+
   previous_light: >
     {% if previous_room in mapping %}
       {{ mapping[previous_room] }}
     {% endif %}
 
+  # États robot
   is_running: "{{ state_attr(robot, 'running') }}"
   is_paused: "{{ state_attr(robot, 'paused') }}"
   is_charging: "{{ state_attr(robot, 'charging') }}"
@@ -197,9 +198,9 @@ variables:
     {% if not enable_presence %}
       true
     {% else %}
-      {% set targets = input('presence_entities') %}
+      {% set t = input('presence_entities') %}
       {% set present = false %}
-      {% for p in targets.entity_id %}
+      {% for p in t.entity_id %}
         {% if states(p) == presence_state %}
           {% set present = true %}
         {% endif %}
@@ -207,12 +208,13 @@ variables:
       {{ not present }}
     {% endif %}
 
-  # Lux optionnel
+  # Luminosité optionnelle (target peut être vide)
   is_too_bright: >
     {% if not enable_lux %}
       false
     {% else %}
-      {% set sensor = input('luminosity_sensor') %}
+      {% set t = input('luminosity_sensor') %}
+      {% set sensor = t.entity_id[0] if t and t.entity_id|length > 0 else none %}
       {% if sensor == none %}
         false
       {% else %}
@@ -220,7 +222,7 @@ variables:
       {% endif %}
     {% endif %}
 
-  # DND avec gestion minuit
+  # DND (gestion minuit)
   is_dnd_active: >
     {% if not input('enable_dnd') %}
       false
@@ -266,7 +268,7 @@ action:
                 target:
                   entity_id: "{{ mapping[current_room] }}"
 
-  # 2️⃣ Éteindre la pièce quittée
+  # 2️⃣ Éteindre lumière pièce quittée
   - choose:
       - conditions:
           - "{{ previous_light is not none }}"
@@ -279,7 +281,7 @@ action:
             target:
               entity_id: "{{ previous_light }}"
 
-  # 3️⃣ Éteindre si robot stoppe
+  # 3️⃣ Éteindre lumière si robot stoppe/pausé/docké
   - choose:
       - conditions:
           - "{{ current_room in mapping }}"
