@@ -77,12 +77,10 @@ blueprint:
 
     luminosity_sensor:
       name: Capteur de luminosité
-      description: Capteur de luminosité (faux capteur par défaut)
+      description: Capteur de luminosité (optionnel, faux capteur par défaut)
       default: sensor.fake_lux
       selector:
-        entity:
-          domain: sensor
-          device_class: illuminance
+        text: {}
 
     luminosity_threshold:
       name: Seuil lux
