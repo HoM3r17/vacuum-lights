@@ -132,7 +132,7 @@ blueprint:
           max: 100
           step: 1
 
-mode: restart
+mode: single
 
 trigger:
   - platform: state
