@@ -107,7 +107,7 @@ variables:
   is_paused_or_docked: "{{ robot_state in ['paused','docked'] }}"
   is_everyone_absent: >
     {% if not enable_presence %}
-      true
+      {{ true }}
     {% else %}
       {% set absent = true %}
       {% for p in presence_entities %}
@@ -119,7 +119,7 @@ variables:
     {% endif %}
   is_dnd_active: >
     {% if not enable_dnd %}
-      false
+      {{ false }}
     {% else %}
       {% set now_m = now().hour*60 + now().minute %}
       {% set s = str(dnd_start_time).split(':') %}
