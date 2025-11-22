@@ -1,39 +1,37 @@
 blueprint:
   name: Lumières robot aspirateur (absence + DND)
-  description: >
-    Allume ou éteint les lumières selon la pièce détectée par le robot.
-    Options : présence, DND, luminosité fixe ou précédente.
+  description: "Allume ou éteint les lumières selon la pièce détectée par le robot."
   domain: automation
 
   input:
     robot_entity:
-      name: Robot aspirateur
-      description: Entité vacuum du robot (ex: vacuum.l40s_pro_ultra)
+      name: "Robot aspirateur"
+      description: "Entité vacuum du robot (exemple: vacuum.l40s_pro_ultra)"
       selector:
         entity:
           domain: vacuum
 
     current_room_sensor:
-      name: Capteur pièce actuelle
-      description: Entité sensor qui indique la pièce courante
+      name: "Capteur pièce actuelle"
+      description: "Entité sensor qui indique la pièce courante"
       selector:
         entity:
           domain: sensor
 
     room_light_mapping:
-      name: Mapping pièces vers lumières
-      description: Associer chaque pièce à une lumière
+      name: "Mapping pièces vers lumières"
+      description: "Associer chaque pièce à une lumière"
       selector:
         object: {}
 
     enable_presence_check:
-      name: Activer gestion de présence
+      name: "Activer gestion de présence"
       default: false
       selector:
         boolean: {}
 
     presence_entities:
-      name: Entités de présence
+      name: "Entités de présence"
       default: []
       selector:
         entity:
@@ -41,42 +39,42 @@ blueprint:
           domain: person
 
     presence_state:
-      name: État = présent
+      name: "État = présent"
       default: home
       selector:
         text: {}
 
     enable_dnd:
-      name: Activer DND
+      name: "Activer DND"
       default: false
       selector:
         boolean: {}
 
     dnd_start_time:
-      name: Début DND
+      name: "Début DND"
       default: "22:30"
       selector:
         time: {}
 
     dnd_end_time:
-      name: Fin DND
+      name: "Fin DND"
       default: "08:00"
       selector:
         time: {}
 
     brightness_mode:
-      name: Mode luminosité
+      name: "Mode luminosité"
       default: fixed
       selector:
         select:
           options:
-            - label: Conserver précédente
+            - label: "Conserver précédente"
               value: previous
-            - label: Fixer un pourcentage
+            - label: "Fixer un pourcentage"
               value: fixed
 
     brightness_value:
-      name: Pourcentage fixe
+      name: "Pourcentage fixe"
       default: 100
       selector:
         number:
