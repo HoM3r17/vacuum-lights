@@ -77,7 +77,8 @@ blueprint:
 
     luminosity_sensor:
       name: Capteur de luminosité
-      default: ""
+      description: Capteur de luminosité (faux capteur par défaut)
+      default: sensor.fake_lux
       selector:
         entity:
           domain: sensor
@@ -150,7 +151,7 @@ variables:
       {{ absent }}
     {% endif %}
   is_too_bright: >
-    {% if not enable_lux or not luminosity_sensor %}
+    {% if not enable_lux %}
       false
     {% else %}
       {{ states(luminosity_sensor) | float(default=0) > luminosity_threshold }}
