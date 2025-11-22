@@ -1,6 +1,6 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.000
-  description: "Synchronise les lumières avec le robot aspirateur, extinction systématique de la pièce précédente."
+  name: Smart Vacuum & Light Sync V1.00
+  description: "Synchronise les lumières avec le robot aspirateur, extinction systématique de la pièce précédente, déclenchement limité aux états utiles."
   domain: automation
   input:
     vacuum_entity:
@@ -53,6 +53,13 @@ trigger:
     entity_id: !input room_sensor
   - platform: state
     entity_id: !input vacuum_entity
+    to:
+      - cleaning
+      - returning
+      - paused
+      - idle
+      - docked
+      - error
 
 action:
   - variables:
