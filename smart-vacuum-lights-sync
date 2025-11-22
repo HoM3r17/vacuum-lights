@@ -20,7 +20,7 @@ blueprint:
       name: Room → Light mapping (JSON)
       description: >
         Paste a JSON dictionary, e.g.:
-        {"WC":"light.lumiere_wc","Living Room":"light.lumieres_salon"}
+        {"Kitchen":"light.kitchen_main","Dining Room":"light.dining_room_main"}
       selector:
         text: {}
     presence_entities:
