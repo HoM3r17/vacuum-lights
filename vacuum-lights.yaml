@@ -1,12 +1,12 @@
 blueprint:
-  name: Lumières robot aspirateur (absence + DND)
+  name: "Lumières robot aspirateur (absence + DND)"
   description: "Allume ou éteint les lumières selon la pièce détectée par le robot."
   domain: automation
 
   input:
     robot_entity:
       name: "Robot aspirateur"
-      description: "Entité vacuum du robot (exemple: vacuum.l40s_pro_ultra)"
+      description: "Entité vacuum du robot (exemple : vacuum.l40s_pro_ultra)"
       selector:
         entity:
           domain: vacuum
