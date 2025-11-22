@@ -27,16 +27,7 @@ blueprint:
       name: Mapping pièces vers lumières
       description: 'Ajouter autant de pièces que nécessaire, format clé=pièce, valeur=lumière'
       selector:
-        object:
-          key:
-            name: Pièce
-            selector:
-              text
-          value:
-            name: Lumière
-            selector:
-              entity:
-                domain: light
+        object: {}   # ✅ Correctif : object vide, permet clé=pièce, valeur=lumière
 
     ###########################################################################
     # PRÉSENCE (optionnelle)
@@ -145,18 +136,6 @@ trigger:
   - platform: state
     entity_id: !input robot_entity
   - platform: state
-    entity_id: !input robot_entity
-    attribute: running
-  - platform: state
-    entity_id: !input robot_entity
-    attribute: paused
-  - platform: state
-    entity_id: !input robot_entity
-    attribute: docked
-  - platform: state
-    entity_id: !input robot_entity
-    attribute: charging
-  - platform: state
     entity_id: !input current_room_sensor
 
 variables:
@@ -182,6 +161,7 @@ variables:
     {% else %}
       {{ none }}
     {% endif %}
+  # États robot
   is_running: >
     {{ state_attr(robot, 'running') | default(false) or
        state_attr(robot, 'zone_cleaning') | default(false) or
@@ -191,6 +171,7 @@ variables:
     {{ state_attr(robot, 'paused') | default(false) or
        state_attr(robot, 'charging') | default(false) or
        state_attr(robot, 'docked') | default(false) }}
+  # Présence optionnelle
   is_everyone_absent: >
     {% if not enable_presence %}
       true
@@ -203,12 +184,14 @@ variables:
       {% endfor %}
       {{ absent }}
     {% endif %}
+  # Luminosité optionnelle
   is_too_bright: >
     {% if not enable_lux or not luminosity_sensor %}
       false
     {% else %}
       {{ states(luminosity_sensor) | float > luminosity_threshold }}
     {% endif %}
+  # DND (gestion minuit)
   is_dnd_active: >
     {% if not enable_dnd %}
       false
