@@ -61,7 +61,7 @@ action:
   - variables:
       room_sensor: !input room_sensor
       vacuum_entity: !input vacuum_entity
-      lights_map: "{{ !input lights_mapping_text | from_json }}"
+      lights_map: !input lights_mapping_text
       presence_entities: !input presence_entities
       light_sensor: !input light_sensor
       light_threshold: !input light_threshold
@@ -84,22 +84,25 @@ action:
               {{ presence_ok and lux_ok }}
         sequence:
           - choose:
+              # Cas 1 : robot démarre ou reprend
               - conditions:
                   - condition: template
-                    value_template: "{{ vacuum_state in ['cleaning','returning'] and room in lights_map }}"
+                    value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
                 sequence:
                   - service: light.turn_on
                     data:
                       brightness_pct: 100
                     target:
-                      entity_id: "{{ lights_map[room] }}"
+                      entity_id: "{{ (lights_map | from_json)[room] }}"
+              # Cas 2 : robot s’arrête, pause, erreur ou dock
               - conditions:
                   - condition: template
-                    value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in lights_map }}"
+                    value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in (lights_map | from_json) }}"
                 sequence:
                   - service: light.turn_off
                     target:
-                      entity_id: "{{ lights_map[room] }}"
+                      entity_id: "{{ (lights_map | from_json)[room] }}"
+              # Cas 3 : changement de pièce pendant nettoyage
               - conditions:
                   - condition: template
                     value_template: "{{ trigger.entity_id == room_sensor and vacuum_state in ['cleaning','returning'] }}"
@@ -107,20 +110,20 @@ action:
                   - choose:
                       - conditions:
                           - condition: template
-                            value_template: "{{ room in lights_map }}"
+                            value_template: "{{ room in (lights_map | from_json) }}"
                         sequence:
                           - service: light.turn_on
                             data:
                               brightness_pct: 100
                             target:
-                              entity_id: "{{ lights_map[room] }}"
+                              entity_id: "{{ (lights_map | from_json)[room] }}"
                   - choose:
                       - conditions:
                           - condition: template
-                            value_template: "{{ previous_room in lights_map }}"
+                            value_template: "{{ previous_room in (lights_map | from_json) }}"
                         sequence:
                           - service: light.turn_off
                             target:
-                              entity_id: "{{ lights_map[previous_room] }}"
+                              entity_id: "{{ (lights_map | from_json)[previous_room] }}"
 
 mode: restart
