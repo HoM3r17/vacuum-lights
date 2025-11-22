@@ -1,57 +1,49 @@
 blueprint:
-  name: Smart Vacuum & Light Sync *Aspirateur et Lumières synchronisés*
+  name: Smart Vacuum & Light Sync
   description: >
     Sync lights with your vacuum robot.
-    *Synchronise les lumières avec le robot aspirateur.*
   domain: automation
   input:
     vacuum_entity:
-      name: Vacuum entity *Entité aspirateur*
+      name: Vacuum entity
       description: Vacuum robot entity (vacuum.xxx).
-        *Entité du robot aspirateur (vacuum.xxx).*
       selector:
         entity:
           domain: vacuum
     room_sensor:
-      name: Room sensor *Capteur de pièce*
+      name: Room sensor
       description: Sensor entity indicating the robot's current room.
-        *Entité sensor indiquant la pièce actuelle du robot.*
       selector:
         entity:
           domain: sensor
     lights_mapping_text:
-      name: Room → Light mapping (JSON) *Mapping pièces → lumières (JSON)*
+      name: Room → Light mapping (JSON)
       description: >
         Paste a JSON dictionary, e.g.:
         {"WC":"light.lumiere_wc","Living Room":"light.lumieres_salon"}
-        *Collez un dictionnaire JSON, par ex. :
-        {"WC":"light.lumiere_wc","Salon":"light.lumieres_salon"}*
       selector:
         text: {}
     presence_entities:
-      name: Presence entities (optional) *Entités de présence (optionnel)*
+      name: Presence entities (optional)
       description: >
         List of presence entities (person.xxx). If empty, no presence condition.
-        *Liste des entités de présence (person.xxx). Si vide, pas de condition de présence.*
       default: []
       selector:
         entity:
           domain: person
           multiple: true
     light_sensor:
-      name: Light sensor (optional) *Capteur de luminosité (optionnel)*
+      name: Light sensor (optional)
       description: >
         Light sensor entity (lux). If empty, no luminosity condition.
-        *Entité sensor de luminosité (lux). Si vide, pas de condition de luminosité.*
       default: ""
       selector:
         entity:
           domain: sensor
     light_threshold:
-      name: Light threshold (lux) *Seuil de luminosité (lux)*
+      name: Light threshold (lux)
       description: >
         Value above which the automation will not run.
-        *Valeur au-dessus de laquelle le scénario ne s’exécute pas.*
       default: 100
       selector:
         number:
