@@ -25,9 +25,9 @@ blueprint:
 
     room_light_mapping:
       name: Mapping pièces vers lumières
-      description: 'Ajouter autant de pièces que nécessaire, format clé=pièce, valeur=lumière'
+      description: 'Ajouter autant de pièces que nécessaire, clé = pièce, valeur = lumière'
       selector:
-        object: {}   # ✅ Correctif : object vide, permet clé=pièce, valeur=lumière
+        object: {}
 
     ###########################################################################
     # PRÉSENCE (optionnelle)
