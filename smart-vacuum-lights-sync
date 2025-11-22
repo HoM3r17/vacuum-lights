@@ -50,6 +50,17 @@ blueprint:
           min: 0
           max: 10000
           unit_of_measurement: lux
+    light_brightness:
+      name: Light brightness (optional)
+      description: >
+        Brightness percentage (0–100). Leave empty to just turn on the light without changing brightness.
+      default: ""
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          unit_of_measurement: "%"
 
 trigger:
   - platform: state
@@ -65,6 +76,7 @@ action:
       presence_entities: !input presence_entities
       light_sensor: !input light_sensor
       light_threshold: !input light_threshold
+      light_brightness: !input light_brightness
       room: "{{ states(room_sensor) }}"
       previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
       vacuum_state: "{{ states(vacuum_entity) }}"
@@ -91,7 +103,9 @@ action:
                 sequence:
                   - service: light.turn_on
                     data:
-                      brightness_pct: 100
+                      {% if light_brightness != "" %}
+                      brightness_pct: "{{ light_brightness | int }}"
+                      {% endif %}
                     target:
                       entity_id: "{{ (lights_map | from_json)[room] }}"
               # Case 2: vacuum stops, pauses, errors or docks
@@ -114,7 +128,9 @@ action:
                         sequence:
                           - service: light.turn_on
                             data:
-                              brightness_pct: 100
+                              {% if light_brightness != "" %}
+                              brightness_pct: "{{ light_brightness | int }}"
+                              {% endif %}
                             target:
                               entity_id: "{{ (lights_map | from_json)[room] }}"
                   - choose:
