@@ -19,11 +19,13 @@ blueprint:
       selector:
         entity:
           domain: sensor
-    lights_mapping:
-      name: Mapping pièces → lumières
-      description: Associez les noms de pièces du robot aux entités lumières correspondantes
+    lights_mapping_text:
+      name: Mapping pièces → lumières (JSON)
+      description: >
+        Collez un dictionnaire JSON, par ex :
+        {"WC":"light.lumiere_wc","Salon":"light.lumieres_salon"}
       selector:
-        object
+        text: {}
     presence_entities:
       name: Entités de présence (optionnel)
       description: Liste des entités de présence (person.xxx). Si vide, pas de condition de présence.
@@ -55,13 +57,12 @@ trigger:
   - platform: state
     entity_id: !input vacuum_entity
 
-condition: []
 action:
   - variables:
       room: "{{ states(room_sensor) }}"
       previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
       vacuum_state: "{{ states(vacuum_entity) }}"
-      lights_map: !input lights_mapping
+      lights_map: "{{ lights_mapping_text | from_json }}"
       presence_entities: !input presence_entities
       light_sensor: !input light_sensor
       light_threshold: !input light_threshold
@@ -81,7 +82,6 @@ action:
               {{ presence_ok and lux_ok }}
         sequence:
           - choose:
-              # Cas 1 : robot démarre ou reprend
               - conditions:
                   - condition: template
                     value_template: "{{ vacuum_state in ['cleaning','returning'] and room in lights_map }}"
@@ -91,8 +91,6 @@ action:
                       brightness_pct: 100
                     target:
                       entity_id: "{{ lights_map[room] }}"
-
-              # Cas 2 : robot s’arrête, pause, erreur ou dock
               - conditions:
                   - condition: template
                     value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in lights_map }}"
@@ -100,8 +98,6 @@ action:
                   - service: light.turn_off
                     target:
                       entity_id: "{{ lights_map[room] }}"
-
-              # Cas 3 : changement de pièce pendant nettoyage
               - conditions:
                   - condition: template
                     value_template: "{{ trigger.entity_id == room_sensor and vacuum_state in ['cleaning','returning'] }}"
