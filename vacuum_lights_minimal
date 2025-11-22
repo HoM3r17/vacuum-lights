@@ -50,7 +50,7 @@ blueprint:
 
     presence_state:
       name: État = présent
-      default: Maison
+      default: home
       selector:
         text: {}
 
@@ -133,27 +133,12 @@ variables:
   presence_state: !input presence_state
   luminosity_threshold: !input luminosity_threshold
   current_room: "{{ states(room_sensor) }}"
-  previous_room: >
-    {% if trigger.platform == 'state' and trigger.entity_id == room_sensor %}
-      {{ trigger.from_state.state }}
-    {% else %}
-      {{ none }}
-    {% endif %}
-  previous_light: >
-    {% if previous_room in mapping %}
-      {{ mapping[previous_room] }}
-    {% else %}
-      {{ none }}
-    {% endif %}
-  is_running: >
-    {{ state_attr(robot, 'running') | default(false) or
-       state_attr(robot, 'zone_cleaning') | default(false) or
-       state_attr(robot, 'segment_cleaning') | default(false) or
-       state_attr(robot, 'spot_cleaning') | default(false) }}
-  is_paused_or_docked: >
-    {{ state_attr(robot, 'paused') | default(false) or
-       state_attr(robot, 'charging') | default(false) or
-       state_attr(robot, 'docked') | default(false) }}
+  previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else none }}"
+  previous_light: "{{ mapping.get(previous_room) }}"
+  robot_state: "{{ states(robot) }}"
+
+  is_running: "{{ robot_state == 'cleaning' }}"
+  is_paused_or_docked: "{{ robot_state in ['paused','docked','returning'] }}"
   is_everyone_absent: >
     {% if not enable_presence %}
       true
@@ -170,7 +155,7 @@ variables:
     {% if not enable_lux or not luminosity_sensor %}
       false
     {% else %}
-      {{ states(luminosity_sensor) | float > luminosity_threshold }}
+      {{ states(luminosity_sensor) | float(default=0) > luminosity_threshold }}
     {% endif %}
   is_dnd_active: >
     {% if not enable_dnd %}
@@ -202,13 +187,13 @@ action:
                 sequence:
                   - service: light.turn_on
                     target:
-                      entity_id: "{{ mapping[current_room] }}"
+                      entity_id: "{{ mapping.get(current_room) }}"
                     data:
                       brightness_pct: "{{ brightness_value }}"
             default:
               - service: light.turn_on
                 target:
-                  entity_id: "{{ mapping[current_room] }}"
+                  entity_id: "{{ mapping.get(current_room) }}"
 
   - choose:
       - conditions:
@@ -229,11 +214,13 @@ action:
           - "{{ is_everyone_absent }}"
           - "{{ not is_dnd_active }}"
         sequence:
-          - delay:
-              seconds: >
-                {% if state_attr(robot, 'docked') | default(false) %} 15
-                {% else %} 60
-                {% endif %}
+          - choose:
+              - conditions: "{{ robot_state == 'docked' }}"
+                sequence:
+                  - delay: "00:00:15"
+              - conditions: "{{ robot_state == 'paused' }}"
+                sequence:
+                  - delay: "00:01:00"
           - service: light.turn_off
             target:
-              entity_id: "{{ mapping[current_room] }}"
+              entity_id: "{{ mapping.get(current_room) }}"
