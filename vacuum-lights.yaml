@@ -8,28 +8,23 @@ blueprint:
   input:
     robot_entity:
       name: Robot aspirateur
+      description: Entité vacuum du robot (ex: vacuum.l40s_pro_ultra)
       selector:
         entity:
           domain: vacuum
 
     current_room_sensor:
       name: Capteur pièce actuelle
+      description: Entité sensor qui indique la pièce courante
       selector:
         entity:
           domain: sensor
 
     room_light_mapping:
       name: Mapping pièces vers lumières
+      description: Associer chaque pièce à une lumière
       selector:
-        object:
-          multiple: true
-          key:
-            selector:
-              text: {}
-          value:
-            selector:
-              entity:
-                domain: light
+        object: {}
 
     enable_presence_check:
       name: Activer gestion de présence
