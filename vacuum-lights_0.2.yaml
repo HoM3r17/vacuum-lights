@@ -1,9 +1,9 @@
 blueprint:
-  name: Lumières robot aspirateur (absence + DND + luminosité)
+  name: Lumières robot aspirateur (absence + DND)
   description: >
     Allume et éteint les lumières en fonction de la pièce où se trouve le robot,
-    uniquement si tous les utilisateurs sélectionnés sont absents.
-    Options : DND, seuil de luminosité, choix de la luminosité à l'allumage.
+    uniquement si tous les utilisateurs sont absents.
+    Options : DND, seuil de luminosité, luminosité fixe ou précédente.
   domain: automation
   input:
     robot_entity:
@@ -19,10 +19,10 @@ blueprint:
         entity:
           domain: sensor
     room_light_mapping:
-      name: Mapping pièces/lumières
+      name: Mapping pièces/lumières (format JSON)
       description: >
         Associe chaque pièce à son entité lumière.
-        Format : {"Pièce 1": "light.entité1", "Pièce 2": "light.entité2"}
+        Exemple : {"Salon": "light.lumiere_salon", "Cuisine": "light.lumiere_cuisine"}
       default: '{"exemple": "light.exemple"}'
       selector:
         text:
@@ -82,13 +82,13 @@ blueprint:
           mode: box
     brightness_mode:
       name: Mode de luminosité à l'allumage
-      description: Choisir entre "Conserver la luminosité précédente" ou "Définir un pourcentage fixe"
-      default: "Définir un pourcentage fixe"
+      description: Choisir entre "conserver" ou "fixe"
+      default: "fixe"
       selector:
         select:
           options:
-            - "Conserver la luminosité précédente"
-            - "Définir un pourcentage fixe"
+            - "conserver"
+            - "fixe"
     brightness_value:
       name: Pourcentage de luminosité (1-100)
       description: Pourcentage de luminosité si le mode "fixe" est sélectionné
@@ -129,12 +129,7 @@ variables:
     {% else %}
       {{ none }}
     {% endif %}
-  mapping: >-
-    {% set result = {} %}
-    {% for room, light in (room_light_mapping|from_json).items() %}
-      {% set _ = result.update({room: light}) %}
-    {% endfor %}
-    {{ result }}
+  mapping: "{{ room_light_mapping|from_json }}"
   is_running: >-
     {{ state_attr(robot_entity, 'running') or
        state_attr(robot_entity, 'zone_cleaning') or
@@ -192,14 +187,14 @@ action:
           - "{{ not is_too_bright }}"
         sequence:
           - choose:
-              - conditions: "{{ brightness_mode == 'Définir un pourcentage fixe' }}"
+              - conditions: "{{ brightness_mode == 'fixe' }}"
                 sequence:
                   - service: light.turn_on
                     target:
                       entity_id: "{{ mapping[current_room] }}"
                     data:
                       brightness_pct: !input brightness_value
-              - conditions: "{{ brightness_mode == 'Conserver la luminosité précédente' }}"
+              - conditions: "{{ brightness_mode == 'conserver' }}"
                 sequence:
                   - service: light.turn_on
                     target:
