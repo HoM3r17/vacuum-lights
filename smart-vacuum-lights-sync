@@ -1,6 +1,6 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.00
-  description: "Synchronise les lumières avec le robot aspirateur, avec extinction systématique de la pièce précédente."
+  name: Smart Vacuum & Light Sync V1.000
+  description: "Synchronise les lumières avec le robot aspirateur, extinction systématique de la pièce précédente."
   domain: automation
   input:
     vacuum_entity:
@@ -81,8 +81,8 @@ action:
               ) %}
               {{ presence_ok and lux_ok }}
         sequence:
+          # Allumer la nouvelle pièce si en cleaning/returning
           - choose:
-              # Allumer la nouvelle pièce si en cleaning/returning
               - conditions:
                   - condition: template
                     value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
@@ -105,7 +105,8 @@ action:
                             target:
                               entity_id: "{{ (lights_map | from_json)[room] }}"
 
-              # Éteindre la pièce précédente systématiquement si différente
+          # Éteindre la pièce précédente systématiquement
+          - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ previous_room != '' and previous_room != room and previous_room in (lights_map | from_json) }}"
@@ -114,7 +115,8 @@ action:
                     target:
                       entity_id: "{{ (lights_map | from_json)[previous_room] }}"
 
-              # Extinction si vacuum en pause/idle/docked/error
+          # Extinction si vacuum en pause/idle/docked/error
+          - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in (lights_map | from_json) }}"
