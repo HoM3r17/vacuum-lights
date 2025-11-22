@@ -1,5 +1,5 @@
 blueprint:
-  name: Lumières robot aspirateur (absence + DND + luminosité) 0.5
+  name: Lumières robot aspirateur (absence + DND + luminosité)
   description: >
     Allume/éteint les lumières selon la pièce où se trouve le robot.
     Options : présence, DND, seuil de luminosité, luminosité fixe/précédente.
@@ -12,21 +12,21 @@ blueprint:
 
     robot_entity:
       name: Robot aspirateur
-      description: Ex : vacuum.roborock_s7
+      description: "Ex : vacuum.roborock_s7"
       selector:
         entity:
           domain: vacuum
 
     current_room_sensor:
       name: Capteur pièce actuelle
-      description: Ex : sensor.robot_current_room
+      description: "Ex : sensor.robot_current_room"
       selector:
         entity:
           domain: sensor
 
     room_light_mapping:
       name: Mapping pièces → lumières
-      description: Ex : {"Salon":"light.salon","Cuisine":"light.cuisine"}
+      description: "Format : {'Salon':'light.salon','Cuisine':'light.cuisine'}"
       default: {}
       selector:
         object:
@@ -38,14 +38,14 @@ blueprint:
 
     enable_presence_check:
       name: Activer la gestion de présence
-      description: Bloque l’allumage si quelqu’un est présent.
+      description: "Si activée : allumage bloqué quand quelqu’un est présent."
       default: true
       selector:
         boolean:
 
     presence_entities:
       name: Entités de présence
-      description: Liste person.* (si présence activée)
+      description: "Liste person.* (si présence activée)"
       selector:
         target:
           entity:
@@ -53,7 +53,7 @@ blueprint:
 
     presence_state:
       name: État = présent
-      description: Ex : home
+      description: "Ex : home"
       default: "home"
       selector:
         text:
@@ -65,7 +65,7 @@ blueprint:
 
     enable_dnd:
       name: Activer DND
-      description: Bloque l’automatisation sur une plage horaire.
+      description: "Bloque l’automatisation durant la plage horaire."
       default: false
       selector:
         boolean:
@@ -89,14 +89,14 @@ blueprint:
 
     enable_luminosity_check:
       name: Activer contrôle luminosité
-      description: N’allume que si la pièce est sombre.
+      description: "N’allume que si la pièce est sombre."
       default: false
       selector:
         boolean:
 
     luminosity_sensor:
       name: Capteur de luminosité (optionnel)
-      description: Laisser vide si non utilisé.
+      description: "Laisser vide si non utilisé."
       selector:
         target:
           entity:
@@ -105,6 +105,7 @@ blueprint:
 
     luminosity_threshold:
       name: Seuil lux
+      description: "Allumage si luminosité < seuil."
       default: 50
       selector:
         number:
@@ -119,7 +120,7 @@ blueprint:
 
     brightness_mode:
       name: Mode luminosité
-      description: Fixe ou dernière valeur
+      description: "Fixe ou dernière valeur utilisée."
       default: "fixed"
       selector:
         select:
@@ -131,6 +132,7 @@ blueprint:
 
     brightness_value:
       name: Pourcentage fixe
+      description: "Utilisé si le mode fixe est sélectionné."
       default: 100
       selector:
         number:
