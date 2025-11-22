@@ -1,8 +1,8 @@
 blueprint:
-  name: Lumières robot aspirateur (absence + DND + luminosité)
+  name: Lumières robot aspirateur (absence + DND)
   description: >
     Allume ou éteint les lumières selon la pièce détectée par le robot.
-    Options : présence, DND, luminosité, luminosité fixe ou précédente.
+    Options : présence, DND, luminosité fixe ou précédente.
   domain: automation
 
   input:
@@ -69,28 +69,6 @@ blueprint:
       selector:
         time: {}
 
-    enable_luminosity_check:
-      name: Activer contrôle luminosité
-      default: false
-      selector:
-        boolean: {}
-
-    luminosity_sensor:
-      name: Capteur de luminosité
-      description: Capteur de luminosité (optionnel, faux capteur par défaut)
-      default: sensor.fake_lux
-      selector:
-        text: {}
-
-    luminosity_threshold:
-      name: Seuil lux
-      default: 50
-      selector:
-        number:
-          min: 0
-          max: 2000
-          step: 5
-
     brightness_mode:
       name: Mode luminosité
       default: fixed
@@ -124,11 +102,9 @@ variables:
   room_sensor: !input current_room_sensor
   mapping: !input room_light_mapping
   enable_presence: !input enable_presence_check
-  enable_lux: !input enable_luminosity_check
   brightness_mode: !input brightness_mode
   brightness_value: !input brightness_value
   presence_state: !input presence_state
-  luminosity_threshold: !input luminosity_threshold
   current_room: "{{ states(room_sensor) }}"
   previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else none }}"
   previous_light: "{{ mapping.get(previous_room) if previous_room in mapping else none }}"
@@ -147,12 +123,6 @@ variables:
         {% endif %}
       {% endfor %}
       {{ absent }}
-    {% endif %}
-  is_too_bright: >
-    {% if not enable_lux %}
-      false
-    {% else %}
-      {{ states(luminosity_sensor) | float(default=0) > luminosity_threshold }}
     {% endif %}
   is_dnd_active: >
     {% if not enable_dnd %}
@@ -177,7 +147,6 @@ action:
           - "{{ is_running }}"
           - "{{ is_everyone_absent }}"
           - "{{ not is_dnd_active }}"
-          - "{{ not is_too_bright }}"
         sequence:
           - choose:
               - conditions: "{{ brightness_mode == 'fixed' }}"
