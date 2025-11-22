@@ -26,6 +26,7 @@ blueprint:
     room_light_mapping:
       name: Mapping pièces vers lumières
       description: 'Format : {"Salon": "light.salon", "Cuisine": "light.cuisine"}'
+      default: '{}'
       selector:
         text:
 
@@ -146,7 +147,7 @@ trigger:
 variables:
   robot: !input robot_entity
   room_sensor: !input current_room_sensor
-  mapping: "{{ room_light_mapping | from_json }}"
+  mapping: "{{ room_light_mapping | default('{}') | from_json }}"
   enable_presence: !input enable_presence_check
   enable_lux: !input enable_luminosity_check
   brightness_mode: !input brightness_mode
@@ -157,22 +158,21 @@ variables:
   current_room: "{{ states(room_sensor) }}"
   previous_room: >
     {% if trigger.platform == 'state' and trigger.entity_id == room_sensor %}
-      {{ trigger.from_state.state }}
+      {{ trigger.from_state.state | default('') }}
     {% else %}
-      {{ none }}
+      {{ '' }}
     {% endif %}
-  previous_light: >
-    {% if previous_room in mapping %}
-      {{ mapping[previous_room] }}
-    {% else %}
-      {{ none }}
-    {% endif %}
+  previous_light: "{{ mapping.get(previous_room, None) }}"
 
-  # États robot
-  is_running: "{{ state_attr(robot, 'running') or state_attr(robot, 'zone_cleaning') or state_attr(robot, 'segment_cleaning') or state_attr(robot, 'spot_cleaning') }}"
-  is_paused: "{{ state_attr(robot, 'paused') }}"
-  is_charging: "{{ state_attr(robot, 'charging') }}"
-  is_docked: "{{ state_attr(robot, 'docked') }}"
+  # États robot sécurisés
+  is_running: >
+    {{ state_attr(robot, 'running') | default(false) or
+       state_attr(robot, 'zone_cleaning') | default(false) or
+       state_attr(robot, 'segment_cleaning') | default(false) or
+       state_attr(robot, 'spot_cleaning') | default(false) }}
+  is_paused: "{{ state_attr(robot, 'paused') | default(false) }}"
+  is_charging: "{{ state_attr(robot, 'charging') | default(false) }}"
+  is_docked: "{{ state_attr(robot, 'docked') | default(false) }}"
 
   # Présence optionnelle
   presence_entities_input: "{{ presence_entities | default([]) }}"
