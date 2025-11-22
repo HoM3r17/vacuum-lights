@@ -1,32 +1,25 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.0
+  name: Smart Vacuum & Light Sync V1.01
   description: >
     Sync lights with your vacuum robot.
   domain: automation
   input:
     vacuum_entity:
       name: Vacuum entity
-      description: Vacuum robot entity (vacuum.xxx).
       selector:
         entity:
           domain: vacuum
     room_sensor:
       name: Room sensor
-      description: Sensor entity indicating the robot's current room.
       selector:
         entity:
           domain: sensor
     lights_mapping_text:
       name: Room → Light mapping (JSON)
-      description: >
-        Paste a JSON dictionary, e.g.:
-        {"Kitchen":"light.kitchen_main","Dining Room":"light.dining_room_main"}
       selector:
         text: {}
     presence_entities:
       name: Presence entities (optional)
-      description: >
-        List of presence entities (person.xxx). If empty, no presence condition.
       default: []
       selector:
         entity:
@@ -34,16 +27,12 @@ blueprint:
           multiple: true
     light_sensor:
       name: Light sensor (optional)
-      description: >
-        Light sensor entity (lux). If empty, no luminosity condition.
       default: ""
       selector:
         entity:
           domain: sensor
     light_threshold:
       name: Light threshold (lux)
-      description: >
-        Value above which the automation will not run.
       default: 100
       selector:
         number:
@@ -52,8 +41,6 @@ blueprint:
           unit_of_measurement: lux
     light_brightness:
       name: Light brightness (optional)
-      description: >
-        Brightness percentage (0–100). Leave empty to just turn on the light without changing brightness.
       default: ""
       selector:
         number:
@@ -101,23 +88,14 @@ action:
                   - condition: template
                     value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
                 sequence:
-                  - choose:
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ light_brightness != '' }}"
-                        sequence:
-                          - service: light.turn_on
-                            data:
-                              brightness_pct: "{{ light_brightness | int }}"
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ light_brightness == '' }}"
-                        sequence:
-                          - service: light.turn_on
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
+                  - service: light.turn_on
+                    {% if light_brightness != '' %}
+                    data:
+                      brightness_pct: "{{ light_brightness | int }}"
+                    {% endif %}
+                    target:
+                      entity_id: "{{ (lights_map | from_json)[room] }}"
+
               # Case 2: vacuum stops, pauses, errors or docks
               - conditions:
                   - condition: template
@@ -126,6 +104,7 @@ action:
                   - service: light.turn_off
                     target:
                       entity_id: "{{ (lights_map | from_json)[room] }}"
+
               # Case 3: room change during cleaning
               - conditions:
                   - condition: template
@@ -137,24 +116,15 @@ action:
                           - condition: template
                             value_template: "{{ room in (lights_map | from_json) }}"
                         sequence:
-                          - choose:
-                              - conditions:
-                                  - condition: template
-                                    value_template: "{{ light_brightness != '' }}"
-                                sequence:
-                                  - service: light.turn_on
-                                    data:
-                                      brightness_pct: "{{ light_brightness | int }}"
-                                    target:
-                                      entity_id: "{{ (lights_map | from_json)[room] }}"
-                              - conditions:
-                                  - condition: template
-                                    value_template: "{{ light_brightness == '' }}"
-                                sequence:
-                                  - service: light.turn_on
-                                    target:
-                                      entity_id: "{{ (lights_map | from_json)[room] }}"
-                  # Éteindre la pièce précédente
+                          - service: light.turn_on
+                            {% if light_brightness != '' %}
+                            data:
+                              brightness_pct: "{{ light_brightness | int }}"
+                            {% endif %}
+                            target:
+                              entity_id: "{{ (lights_map | from_json)[room] }}"
+
+                  # Éteindre la pièce précédente (séparé)
                   - choose:
                       - conditions:
                           - condition: template
