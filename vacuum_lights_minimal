@@ -1,0 +1,94 @@
+blueprint:
+  name: Lumières robot aspirateur - minimal
+  description: Allume ou éteint les lumières selon la pièce du robot (sans présence, DND ou luminosité)
+  domain: automation
+
+  input:
+    robot_entity:
+      name: Robot aspirateur
+      description: Entité vacuum du robot
+      selector:
+        entity:
+          domain: vacuum
+
+    current_room_sensor:
+      name: Capteur pièce actuelle
+      description: Entité sensor qui indique la pièce actuelle du robot
+      selector:
+        entity:
+          domain: sensor
+
+    room_light_mapping:
+      name: Mapping pièces vers lumières
+      description: Ajouter autant de pièces que nécessaire, clé = pièce, valeur = lumière
+      selector:
+        object:
+          key:
+            selector:
+              text
+          value:
+            selector:
+              entity:
+                domain: light
+
+    brightness_value:
+      name: Pourcentage de luminosité
+      description: Valeur fixe pour allumer la lumière
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+
+mode: single
+
+trigger:
+  - platform: state
+    entity_id: !input robot_entity
+  - platform: state
+    entity_id: !input current_room_sensor
+
+variables:
+  robot: !input robot_entity
+  room_sensor: !input current_room_sensor
+  mapping: !input room_light_mapping
+  brightness_value: !input brightness_value
+  current_room: "{{ states(room_sensor) }}"
+  previous_room: >
+    {% if trigger.platform == 'state' and trigger.entity_id == room_sensor %}
+      {{ trigger.from_state.state }}
+    {% else %}
+      {{ none }}
+    {% endif %}
+  previous_light: >
+    {% if previous_room in mapping %}
+      {{ mapping[previous_room] }}
+    {% else %}
+      {{ none }}
+    {% endif %}
+  is_running: >
+    {{ state_attr(robot, 'running') | default(false) }}
+
+action:
+  # Allumer la lumière dans la pièce actuelle si le robot est en cours
+  - choose:
+      - conditions:
+          - "{{ current_room in mapping }}"
+          - "{{ is_running }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ mapping[current_room] }}"
+            data:
+              brightness_pct: "{{ brightness_value }}"
+
+  # Éteindre la lumière dans la pièce précédente
+  - choose:
+      - conditions:
+          - "{{ previous_light is not none }}"
+          - "{{ previous_room != current_room }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id: "{{ previous_light }}"
