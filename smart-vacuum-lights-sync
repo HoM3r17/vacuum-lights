@@ -34,12 +34,7 @@ blueprint:
 
         Example:
 
-        {
-          "Bathroom": "light.lumieres_sdb",
-          "Dining Hall": "light.lumieres_sam",
-          "Living Room": "light.lumieres_salon",
-          "Kitchen": "light.lumieres_cuisine"
-        }
+        {"Bathroom": "light.lumieres_sdb", "Dining Hall": "light.lumieres_sam", "Living Room": "light.lumieres_salon", "Kitchen": "light.lumieres_cuisine"}
       selector:
         text: {}
 
