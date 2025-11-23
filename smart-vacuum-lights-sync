@@ -1,45 +1,70 @@
 blueprint:
   name: Smart Vacuum & Light Sync V1.00
-  description: "Synchronise les lumières avec le robot aspirateur, extinction systématique de la pièce précédente, déclenchement limité aux états utiles."
+  description: >
+    This Home Assistant automation synchronizes your home lights with the movements of your robot vacuum.
+    It automatically turns on the light in the room where the vacuum is cleaning or entering,
+    and switches it off when the vacuum leaves or stops.
+
   domain: automation
   input:
     vacuum_entity:
       name: "Vacuum entity"
+      description: "Select your robot vacuum entity. Example: vacuum.l40s_pro_ultra"
       selector:
         entity:
           domain: vacuum
+
     room_sensor:
       name: "Room sensor"
+      description: "Sensor that reports the current room of the vacuum. Example: sensor.l40s_pro_ultra_current_room"
       selector:
         entity:
           domain: sensor
+
     lights_mapping_text:
       name: "Room → Light mapping (JSON)"
+      description: >
+        JSON mapping between room names and light entities.
+        Example:
+        {
+          "Bathroom": "light.lumieres_sdb",
+          "Dining Hall": "light.lumieres_sam",
+          "Living Room": "light.lumieres_salon",
+          "Kitchen": "light.lumieres_cuisine"
+        }
       selector:
         text: {}
+
     presence_entities:
       name: "Presence entities (optional)"
+      description: "List of person entities to check if someone is home. Example: person.vincent"
       default: []
       selector:
         entity:
           domain: person
           multiple: true
+
     light_sensor:
       name: "Light sensor (optional)"
+      description: "Sensor measuring ambient light (lux) to avoid turning lights on if already bright."
       default: ""
       selector:
         entity:
           domain: sensor
+
     light_threshold:
       name: "Light threshold (lux)"
+      description: "Maximum lux value under which lights will turn on. Example: 100."
       default: 100
       selector:
         number:
           min: 0
           max: 10000
           unit_of_measurement: lux
+
     light_brightness:
       name: "Light brightness (optional)"
+      description: "Brightness percentage for lights when turned on. Leave empty to keep the last brightness state of the light."
       default: ""
       selector:
         number:
@@ -88,7 +113,7 @@ action:
               ) %}
               {{ presence_ok and lux_ok }}
         sequence:
-          # Allumer la nouvelle pièce si en cleaning/returning
+          # Turn on the new room if vacuum is cleaning/returning
           - choose:
               - conditions:
                   - condition: template
@@ -112,7 +137,7 @@ action:
                             target:
                               entity_id: "{{ (lights_map | from_json)[room] }}"
 
-          # Éteindre la pièce précédente systématiquement
+          # Always turn off the previous room
           - choose:
               - conditions:
                   - condition: template
@@ -122,7 +147,7 @@ action:
                     target:
                       entity_id: "{{ (lights_map | from_json)[previous_room] }}"
 
-          # Extinction si vacuum en pause/idle/docked/error
+          # Turn off lights if vacuum is paused/idle/docked/error
           - choose:
               - conditions:
                   - condition: template
