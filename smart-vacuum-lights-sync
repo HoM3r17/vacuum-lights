@@ -1,5 +1,5 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.00
+  name: Smart Vacuum & Light Sync V1
   description: >
     This Home Assistant automation synchronizes your home lights with the movements of your robot vacuum.
     It automatically turns on the light in the room where the vacuum is cleaning or entering,
