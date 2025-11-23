@@ -9,14 +9,20 @@ blueprint:
   input:
     vacuum_entity:
       name: "Vacuum entity"
-      description: "Select your robot vacuum entity. Example: vacuum.l40s_pro_ultra"
+      description: >
+        Select your robot vacuum entity.
+
+        Example: vacuum.l40s_pro_ultra
       selector:
         entity:
           domain: vacuum
 
     room_sensor:
       name: "Room sensor"
-      description: "Sensor that reports the current room of the vacuum. Example: sensor.l40s_pro_ultra_current_room"
+      description: >
+        Sensor that reports the current room of the vacuum.
+
+        Example: sensor.l40s_pro_ultra_current_room
       selector:
         entity:
           domain: sensor
@@ -25,6 +31,7 @@ blueprint:
       name: "Room → Light mapping (JSON)"
       description: >
         JSON mapping between room names and light entities.
+
         Example:
         {
           "Bathroom": "light.lumieres_sdb",
@@ -37,7 +44,10 @@ blueprint:
 
     presence_entities:
       name: "Presence entities (optional)"
-      description: "List of person entities to check if someone is home. Example: person.vincent"
+      description: >
+        List of person entities to check if someone is home.
+
+        Example: person.vincent
       default: []
       selector:
         entity:
@@ -46,7 +56,8 @@ blueprint:
 
     light_sensor:
       name: "Light sensor (optional)"
-      description: "Sensor measuring ambient light (lux) to avoid turning lights on if already bright."
+      description: >
+        Sensor measuring ambient light (lux) to avoid turning lights on if already bright.
       default: ""
       selector:
         entity:
@@ -54,7 +65,10 @@ blueprint:
 
     light_threshold:
       name: "Light threshold (lux)"
-      description: "Maximum lux value under which lights will turn on. Example: 100."
+      description: >
+        Maximum lux value under which lights will turn on.
+
+        Example: 100
       default: 100
       selector:
         number:
@@ -64,7 +78,10 @@ blueprint:
 
     light_brightness:
       name: "Light brightness (optional)"
-      description: "Brightness percentage for lights when turned on. Leave empty to keep the last brightness state of the light."
+      description: >
+        Brightness percentage for lights when turned on.
+
+        Leave empty to keep the last brightness state of the light.
       default: ""
       selector:
         number:
@@ -113,7 +130,6 @@ action:
               ) %}
               {{ presence_ok and lux_ok }}
         sequence:
-          # Turn on the new room if vacuum is cleaning/returning
           - choose:
               - conditions:
                   - condition: template
@@ -137,7 +153,6 @@ action:
                             target:
                               entity_id: "{{ (lights_map | from_json)[room] }}"
 
-          # Always turn off the previous room
           - choose:
               - conditions:
                   - condition: template
@@ -147,7 +162,6 @@ action:
                     target:
                       entity_id: "{{ (lights_map | from_json)[previous_room] }}"
 
-          # Turn off lights if vacuum is paused/idle/docked/error
           - choose:
               - conditions:
                   - condition: template
