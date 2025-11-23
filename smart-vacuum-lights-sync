@@ -33,6 +33,7 @@ blueprint:
         JSON mapping between room names and light entities.
 
         Example:
+
         {
           "Bathroom": "light.lumieres_sdb",
           "Dining Hall": "light.lumieres_sam",
