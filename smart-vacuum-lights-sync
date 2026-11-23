@@ -1,11 +1,12 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.00
+  name: Smart Vacuum & Light Sync V1.10
   description: >
     This Home Assistant automation synchronizes your home lights with the movements of your robot vacuum.
     It automatically turns on the light in the room where the vacuum is cleaning or entering,
     and switches it off when the vacuum leaves or stops.
-
   domain: automation
+  homeassistant:
+    min_version: 2024.10.0
   input:
     vacuum_entity:
       name: "Vacuum entity"
@@ -28,20 +29,21 @@ blueprint:
           domain: sensor
 
     lights_mapping_text:
-      name: "Room → Light mapping (JSON)"
+      name: "Room → Light mapping"
       description: >
-        JSON mapping between room names and light entities.
+        Mapping between room names and light entities (YAML or JSON).
+        A room can point to a single light or to a list of lights.
 
         Example:
 
-        {"Bathroom": "light.lumieres_sdb", "Dining Hall": "light.lumieres_sam", "Living Room": "light.lumieres_salon", "Kitchen": "light.lumieres_cuisine"}
+        {"Bathroom": "light.lumieres_sdb", "Living Room": ["light.salon_1", "light.salon_2"]}
       selector:
-        text: {}
+        object: {}
 
     presence_entities:
       name: "Presence entities (optional)"
       description: >
-        List of person entities to check if someone is home.
+        Lights are only turned on when none of these persons is home.
 
         Example: person.vincent
       default: []
@@ -58,26 +60,25 @@ blueprint:
       selector:
         entity:
           domain: sensor
+          device_class: illuminance
 
     light_threshold:
       name: "Light threshold (lux)"
       description: >
-        Maximum lux value under which lights will turn on.
-
-        Example: 100
+        Lights only turn on when the ambient light is at or below this value.
       default: 100
       selector:
         number:
           min: 0
           max: 10000
-          unit_of_measurement: lux
+          unit_of_measurement: lx
 
     light_brightness:
       name: "Light brightness (optional)"
       description: >
         Brightness percentage for lights when turned on.
 
-        Leave empty to keep the last brightness state of the light.
+        Leave empty (or 0) to keep the last brightness of the light.
       default: ""
       selector:
         number:
@@ -86,10 +87,13 @@ blueprint:
           step: 1
           unit_of_measurement: "%"
 
-trigger:
-  - platform: state
+triggers:
+  # "to: ~" = only real state changes, attribute updates are ignored
+  - trigger: state
     entity_id: !input room_sensor
-  - platform: state
+    to: ~
+    id: room
+  - trigger: state
     entity_id: !input vacuum_entity
     to:
       - cleaning
@@ -98,73 +102,57 @@ trigger:
       - idle
       - docked
       - error
+    id: vacuum
 
-action:
-  - variables:
-      room_sensor: !input room_sensor
-      vacuum_entity: !input vacuum_entity
-      lights_map: !input lights_mapping_text
-      presence_entities: !input presence_entities
-      light_sensor: !input light_sensor
-      light_threshold: !input light_threshold
-      light_brightness: !input light_brightness
-      room: "{{ states[room_sensor].state }}"
-      previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
-      vacuum_state: "{{ states[vacuum_entity].state }}"
+variables:
+  room_sensor: !input room_sensor
+  vacuum_entity: !input vacuum_entity
+  lights_raw: !input lights_mapping_text
+  presence_entities: !input presence_entities
+  light_sensor: !input light_sensor
+  light_threshold: !input light_threshold
+  light_brightness: !input light_brightness
+  # Accepts both the new object input and the old JSON text input
+  lights_map: >
+    {{ lights_raw if lights_raw is mapping else (lights_raw | from_json(default={})) }}
+  room: "{{ states(room_sensor) }}"
+  previous_room: "{{ trigger.from_state.state if trigger.id == 'room' and trigger.from_state else '' }}"
+  vacuum_state: "{{ states(vacuum_entity) }}"
+  room_lights: "{{ lights_map.get(room, []) }}"
+  previous_lights: "{{ lights_map.get(previous_room, []) if previous_room != room else [] }}"
+  is_active: "{{ vacuum_state in ['cleaning', 'returning'] }}"
+  can_turn_on: >
+    {% set presence_ok = presence_entities | select('is_state', 'home') | list | count == 0 %}
+    {% set lux_ok = light_sensor in ['', none]
+       or states(light_sensor) | float(0) <= light_threshold | float(0) %}
+    {{ presence_ok and lux_ok }}
+  light_data: >
+    {% set b = light_brightness | int(0) if light_brightness not in ['', none] else 0 %}
+    {{ {'brightness_pct': b} if b > 0 else {} }}
 
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: >
-              {% set presence_ok = (
-                presence_entities | length == 0 or
-                (expand(presence_entities) | selectattr('state','eq','home') | list | length == 0)
-              ) %}
-              {% set lux_ok = (
-                light_sensor == "" or
-                (states(light_sensor) | float(0) <= light_threshold)
-              ) %}
-              {{ presence_ok and lux_ok }}
-        sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
-                sequence:
-                  - choose:
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ light_brightness != '' }}"
-                        sequence:
-                          - service: light.turn_on
-                            data:
-                              brightness_pct: "{{ light_brightness | int }}"
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ light_brightness == '' }}"
-                        sequence:
-                          - service: light.turn_on
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
+actions:
+  # 1. Vacuum left a room → turn its light off (never blocked by presence/lux)
+  - if: "{{ previous_lights | length > 0 }}"
+    then:
+      - action: light.turn_off
+        target:
+          entity_id: "{{ previous_lights }}"
 
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ previous_room != '' and previous_room != room and previous_room in (lights_map | from_json) }}"
-                sequence:
-                  - service: light.turn_off
-                    target:
-                      entity_id: "{{ (lights_map | from_json)[previous_room] }}"
+  # 2. Vacuum is cleaning/returning in a mapped room → turn light on
+  - if: "{{ is_active and room_lights | length > 0 and can_turn_on }}"
+    then:
+      - action: light.turn_on
+        target:
+          entity_id: "{{ room_lights }}"
+        data: "{{ light_data }}"
 
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in (lights_map | from_json) }}"
-                sequence:
-                  - service: light.turn_off
-                    target:
-                      entity_id: "{{ (lights_map | from_json)[room] }}"
+  # 3. Vacuum stopped → turn the current room light off (never blocked by presence/lux)
+  - if: "{{ not is_active and room_lights | length > 0 }}"
+    then:
+      - action: light.turn_off
+        target:
+          entity_id: "{{ room_lights }}"
 
-mode: restart
+mode: queued
+max: 10
+max_exceeded: silent
