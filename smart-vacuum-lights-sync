@@ -1,95 +1,210 @@
 blueprint:
-  name: Smart Vacuum & Light Sync V1.00
+  name: Smart Vacuum & Light Sync V2.00
   description: >
     This Home Assistant automation synchronizes your home lights with the movements of your robot vacuum.
-    It automatically turns on the light in the room where the vacuum is cleaning or entering,
-    and switches it off when the vacuum leaves or stops.
-
+    It turns on the light in the room where the vacuum is cleaning, and turns it off (or restores its
+    previous state) when the vacuum leaves the room or stops. Lights that were already on before the
+    vacuum came are never switched off.
   domain: automation
+  homeassistant:
+    min_version: 2024.10.0
   input:
-    vacuum_entity:
-      name: "Vacuum entity"
-      description: >
-        Select your robot vacuum entity.
+    devices:
+      name: "Vacuum & rooms"
+      icon: mdi:robot-vacuum
+      input:
+        vacuum_entity:
+          name: "Vacuum entity"
+          description: >
+            Select your robot vacuum entity.
 
-        Example: vacuum.l40s_pro_ultra
-      selector:
-        entity:
-          domain: vacuum
+            Example: vacuum.l40s_pro_ultra
+          selector:
+            entity:
+              domain: vacuum
 
-    room_sensor:
-      name: "Room sensor"
-      description: >
-        Sensor that reports the current room of the vacuum.
+        room_sensor:
+          name: "Room sensor"
+          description: >
+            Sensor that reports the current room of the vacuum.
 
-        Example: sensor.l40s_pro_ultra_current_room
-      selector:
-        entity:
-          domain: sensor
+            Example: sensor.l40s_pro_ultra_current_room
+          selector:
+            entity:
+              domain: sensor
 
-    lights_mapping_text:
-      name: "Room → Light mapping (JSON)"
-      description: >
-        JSON mapping between room names and light entities.
+        lights_mapping_text:
+          name: "Room → Light mapping"
+          description: >
+            Mapping between room names and lights (YAML or JSON). A room can point to a light,
+            a list of lights, or an object with `lights`, `lux_sensor` and `lux_threshold`.
 
-        Example:
+            Example:
 
-        {"Bathroom": "light.lumieres_sdb", "Dining Hall": "light.lumieres_sam", "Living Room": "light.lumieres_salon", "Kitchen": "light.lumieres_cuisine"}
-      selector:
-        text: {}
+            {"Bathroom": "light.sdb", "Living Room": {"lights": ["light.salon_1", "light.salon_2"], "lux_sensor": "sensor.salon_lux", "lux_threshold": 50}}
+          default: {}
+          selector:
+            object: {}
 
-    presence_entities:
-      name: "Presence entities (optional)"
-      description: >
-        List of person entities to check if someone is home.
+        use_areas:
+          name: "Use Home Assistant areas"
+          description: >
+            For rooms missing from the mapping, use the lights (and illuminance sensor) of the
+            Home Assistant area with the same name as the room.
+          default: false
+          selector:
+            boolean: {}
 
-        Example: person.vincent
-      default: []
-      selector:
-        entity:
-          domain: person
-          multiple: true
+    conditions:
+      name: "When to turn lights on"
+      icon: mdi:filter-outline
+      collapsed: true
+      input:
+        presence_entities:
+          name: "Presence entities (optional)"
+          description: >
+            Lights are only turned on when none of these persons is home.
+          default: []
+          selector:
+            entity:
+              domain: person
+              multiple: true
 
-    light_sensor:
-      name: "Light sensor (optional)"
-      description: >
-        Sensor measuring ambient light (lux) to avoid turning lights on if already bright.
-      default: ""
-      selector:
-        entity:
-          domain: sensor
+        light_sensor:
+          name: "Default light sensor (optional)"
+          description: >
+            Ambient light sensor (lux) used for rooms that don't have their own sensor.
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+              device_class: illuminance
 
-    light_threshold:
-      name: "Light threshold (lux)"
-      description: >
-        Maximum lux value under which lights will turn on.
+        light_threshold:
+          name: "Default light threshold (lux)"
+          description: >
+            Lights only turn on when the ambient light is at or below this value.
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 10000
+              unit_of_measurement: lx
 
-        Example: 100
-      default: 100
-      selector:
-        number:
-          min: 0
-          max: 10000
-          unit_of_measurement: lux
+        only_when_dark:
+          name: "Only after sunset"
+          description: >
+            Only turn lights on when the sun is below the horizon.
+          default: false
+          selector:
+            boolean: {}
 
-    light_brightness:
-      name: "Light brightness (optional)"
-      description: >
-        Brightness percentage for lights when turned on.
+        time_start:
+          name: "Time window start"
+          description: >
+            Lights only turn on between start and end. Overnight windows (e.g. 20:00 → 07:00)
+            are supported. Same start and end = no time restriction.
+          default: "00:00:00"
+          selector:
+            time: {}
 
-        Leave empty to keep the last brightness state of the light.
-      default: ""
-      selector:
-        number:
-          min: 0
-          max: 100
-          step: 1
-          unit_of_measurement: "%"
+        time_end:
+          name: "Time window end"
+          default: "00:00:00"
+          selector:
+            time: {}
 
-trigger:
-  - platform: state
+    behaviour:
+      name: "Light behaviour"
+      icon: mdi:lightbulb-on-outline
+      collapsed: true
+      input:
+        light_brightness:
+          name: "Light brightness (optional)"
+          description: >
+            Brightness percentage for lights when turned on.
+            Leave empty (or 0) to keep the last brightness of the light.
+          default: ""
+          selector:
+            number:
+              min: 0
+              max: 100
+              step: 1
+              unit_of_measurement: "%"
+
+        restore_lights:
+          name: "Restore previous light state"
+          description: >
+            On: lights get back their exact previous state (on/off, brightness, color)
+            when the vacuum leaves. Lights already on are also set to the brightness above while
+            the vacuum is in the room.
+
+            Off: lights that were already on are left untouched, and the lights turned on by the
+            vacuum are simply turned off.
+          default: true
+          selector:
+            boolean: {}
+
+        off_delay:
+          name: "Delay before turning lights off"
+          description: >
+            Wait until the vacuum has stayed this long in its new room before handling the
+            rooms it left. Avoids flickering when it goes back and forth between two rooms.
+          default: 0
+          selector:
+            number:
+              min: 0
+              max: 600
+              step: 5
+              unit_of_measurement: s
+
+        turn_off_all:
+          name: "Turn off all mapped lights when the vacuum stops"
+          description: >
+            Also turn off every light of the mapping when the vacuum stops, including lights it
+            did not turn on (safety net, e.g. after a Home Assistant restart during cleaning).
+          default: false
+          selector:
+            boolean: {}
+
+    errors:
+      name: "Vacuum error"
+      icon: mdi:alert-outline
+      collapsed: true
+      input:
+        error_flash:
+          name: "Flash the lights where the vacuum is stuck"
+          description: >
+            When the vacuum reports an error, flash the lights of its current room
+            (ignores presence, lux and time conditions).
+          default: false
+          selector:
+            boolean: {}
+
+        notify_service:
+          name: "Notification action (optional)"
+          description: >
+            Notify action to call when the vacuum reports an error.
+
+            Example: notify.mobile_app_my_phone
+          default: ""
+          selector:
+            text: {}
+
+triggers:
+  # Vacuum entered a new room → turn its lights on ("to: ~" ignores attribute updates)
+  - trigger: state
     entity_id: !input room_sensor
-  - platform: state
+    to: ~
+    id: room_changed
+  # Vacuum stayed in its new room for the configured delay → handle the rooms it left
+  - trigger: state
+    entity_id: !input room_sensor
+    to: ~
+    for:
+      seconds: !input off_delay
+    id: room_settled
+  - trigger: state
     entity_id: !input vacuum_entity
     to:
       - cleaning
@@ -98,73 +213,179 @@ trigger:
       - idle
       - docked
       - error
+    id: vacuum
 
-action:
-  - variables:
-      room_sensor: !input room_sensor
-      vacuum_entity: !input vacuum_entity
-      lights_map: !input lights_mapping_text
-      presence_entities: !input presence_entities
-      light_sensor: !input light_sensor
-      light_threshold: !input light_threshold
-      light_brightness: !input light_brightness
-      room: "{{ states[room_sensor].state }}"
-      previous_room: "{{ trigger.from_state.state if trigger.entity_id == room_sensor else '' }}"
-      vacuum_state: "{{ states[vacuum_entity].state }}"
+variables:
+  room_sensor: !input room_sensor
+  vacuum_entity: !input vacuum_entity
+  lights_raw: !input lights_mapping_text
+  use_areas: !input use_areas
+  presence_entities: !input presence_entities
+  light_sensor: !input light_sensor
+  light_threshold: !input light_threshold
+  only_when_dark: !input only_when_dark
+  time_start: !input time_start
+  time_end: !input time_end
+  light_brightness: !input light_brightness
+  restore_lights: !input restore_lights
+  turn_off_all: !input turn_off_all
+  error_flash: !input error_flash
+  notify_service: !input notify_service
 
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: >
-              {% set presence_ok = (
-                presence_entities | length == 0 or
-                (expand(presence_entities) | selectattr('state','eq','home') | list | length == 0)
-              ) %}
-              {% set lux_ok = (
-                light_sensor == "" or
-                (states(light_sensor) | float(0) <= light_threshold)
-              ) %}
-              {{ presence_ok and lux_ok }}
-        sequence:
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ vacuum_state in ['cleaning','returning'] and room in (lights_map | from_json) }}"
-                sequence:
-                  - choose:
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ light_brightness != '' }}"
-                        sequence:
-                          - service: light.turn_on
-                            data:
-                              brightness_pct: "{{ light_brightness | int }}"
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
-                      - conditions:
-                          - condition: template
-                            value_template: "{{ light_brightness == '' }}"
-                        sequence:
-                          - service: light.turn_on
-                            target:
-                              entity_id: "{{ (lights_map | from_json)[room] }}"
+  # Accepts both an object input and the old V1.00 JSON text input
+  lights_map: >
+    {{ lights_raw if lights_raw is mapping else (lights_raw | from_json(default={})) }}
+  room: "{{ states(room_sensor) }}"
+  vacuum_state: "{{ states(vacuum_entity) }}"
+  is_active: "{{ vacuum_state in ['cleaning', 'returning'] }}"
+  room_cfg: "{{ lights_map.get(room) }}"
 
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ previous_room != '' and previous_room != room and previous_room in (lights_map | from_json) }}"
-                sequence:
-                  - service: light.turn_off
-                    target:
-                      entity_id: "{{ (lights_map | from_json)[previous_room] }}"
+  room_lights: >
+    {% set c = room_cfg %}
+    {% if c is string %}{{ [c] }}
+    {% elif c is mapping %}{% set l = c.get('lights', []) %}{{ [l] if l is string else l | list }}
+    {% elif c is iterable %}{{ c | list }}
+    {% elif use_areas %}{{ area_entities(room) | select('match', 'light\\.') | list }}
+    {% else %}{{ [] }}{% endif %}
 
-          - choose:
-              - conditions:
-                  - condition: template
-                    value_template: "{{ vacuum_state in ['paused','error','idle','docked'] and room in (lights_map | from_json) }}"
-                sequence:
-                  - service: light.turn_off
-                    target:
-                      entity_id: "{{ (lights_map | from_json)[room] }}"
+  all_mapped_lights: >
+    {% set ns = namespace(l=[]) %}
+    {% for c in lights_map.values() %}
+      {% if c is string %}{% set ns.l = ns.l + [c] %}
+      {% elif c is mapping %}{% set l = c.get('lights', []) %}{% set ns.l = ns.l + ([l] if l is string else l | list) %}
+      {% elif c is iterable %}{% set ns.l = ns.l + c | list %}{% endif %}
+    {% endfor %}
+    {{ ns.l | unique | list }}
 
-mode: restart
+  # --- Conditions to turn lights on ---
+  room_lux_sensor: >
+    {% set s = room_cfg.get('lux_sensor', '') if room_cfg is mapping else '' %}
+    {% if s == '' and use_areas and room_cfg is none %}
+      {% set s = area_entities(room) | select('match', 'sensor\\.')
+                 | select('is_state_attr', 'device_class', 'illuminance') | first | default('', true) %}
+    {% endif %}
+    {{ s if s != '' else (light_sensor or '') }}
+  room_lux_threshold: >
+    {{ room_cfg.get('lux_threshold', light_threshold) if room_cfg is mapping else light_threshold }}
+  can_turn_on: >
+    {% set presence_ok = presence_entities | select('is_state', 'home') | list | count == 0 %}
+    {% set lux_ok = room_lux_sensor == ''
+       or states(room_lux_sensor) | float(0) <= room_lux_threshold | float(0) %}
+    {% set sun_ok = not only_when_dark or is_state('sun.sun', 'below_horizon') %}
+    {% set n = now().strftime('%H:%M:%S') %}
+    {% set s = time_start | string %}{% set e = time_end | string %}
+    {% if s == e %}{% set time_ok = true %}
+    {% elif s < e %}{% set time_ok = s <= n and n < e %}
+    {% else %}{% set time_ok = n >= s or n < e %}{% endif %}
+    {{ presence_ok and lux_ok and sun_ok and time_ok }}
+
+  # --- Tracking: one snapshot scene per room visit, holding the lights this automation turned on ---
+  scene_prefix: "vacuum_lights_{{ this.entity_id.split('.')[1] }}_"
+  session_scenes: >
+    {{ states.scene | map(attribute='entity_id') | select('match', 'scene\\.' ~ scene_prefix) | list }}
+  tracked_lights: >
+    {% set ns = namespace(l=[]) %}
+    {% for s in session_scenes %}{% set ns.l = ns.l + (state_attr(s, 'entity_id') or []) | list %}{% endfor %}
+    {{ ns.l | unique | list }}
+  # Lights to snapshot before turning them on (never snapshot a light twice)
+  new_lights: >
+    {% set l = room_lights | reject('in', tracked_lights) %}
+    {{ (l | list) if restore_lights else (l | select('is_state', 'off') | list) }}
+  # Without restore, lights that were already on are left untouched
+  lights_to_turn_on: >
+    {{ room_lights if restore_lights else room_lights | select('in', tracked_lights + new_lights) | list }}
+  # Rooms to release: all of them when the vacuum stops, otherwise those not sharing a light with the current room
+  scenes_to_release: >
+    {% if not is_active %}{{ session_scenes }}
+    {% else %}
+      {% set ns = namespace(l=[]) %}
+      {% for s in session_scenes %}
+        {% if (state_attr(s, 'entity_id') or []) | select('in', room_lights) | list | count == 0 %}
+          {% set ns.l = ns.l + [s] %}
+        {% endif %}
+      {% endfor %}
+      {{ ns.l }}
+    {% endif %}
+  light_data: >
+    {% set b = light_brightness | int(0) if light_brightness not in ['', none] else 0 %}
+    {{ {'brightness_pct': b} if b > 0 else {} }}
+
+actions:
+  # 1. Vacuum left rooms (after the delay) or stopped → restore / turn off what it turned on
+  - if: >
+      {{ (trigger.id == 'room_settled' or (trigger.id == 'vacuum' and not is_active))
+         and scenes_to_release | count > 0 }}
+    then:
+      - repeat:
+          for_each: "{{ scenes_to_release }}"
+          sequence:
+            - if: "{{ restore_lights }}"
+              then:
+                - action: scene.turn_on
+                  target:
+                    entity_id: "{{ repeat.item }}"
+              else:
+                - action: light.turn_off
+                  target:
+                    entity_id: "{{ state_attr(repeat.item, 'entity_id') }}"
+            - action: scene.delete
+              target:
+                entity_id: "{{ repeat.item }}"
+
+  # 2. Optional safety net: turn off every mapped light the automation did not track
+  - if: >
+      {{ trigger.id == 'vacuum' and not is_active and turn_off_all
+         and all_mapped_lights | reject('in', tracked_lights) | list | count > 0 }}
+    then:
+      - action: light.turn_off
+        target:
+          entity_id: "{{ all_mapped_lights | reject('in', tracked_lights) | list }}"
+
+  # 3. Vacuum is cleaning/returning in a room → snapshot, then turn its lights on
+  - if: >
+      {{ trigger.id in ['room_changed', 'vacuum'] and is_active and can_turn_on
+         and lights_to_turn_on | count > 0 }}
+    then:
+      - if: "{{ new_lights | count > 0 }}"
+        then:
+          - action: scene.create
+            data:
+              scene_id: "{{ scene_prefix ~ (now().timestamp() * 1000) | int }}"
+              snapshot_entities: "{{ new_lights }}"
+      - action: light.turn_on
+        target:
+          entity_id: "{{ lights_to_turn_on }}"
+        data: "{{ light_data }}"
+
+  # 4. Vacuum error → flash the lights where it is stuck and/or notify
+  - if: "{{ trigger.id == 'vacuum' and vacuum_state == 'error' }}"
+    then:
+      - if: "{{ error_flash and room_lights | count > 0 }}"
+        then:
+          # Evaluated now (after step 1 released the previous snapshots), so the flashed lights stay tracked
+          - variables:
+              flash_snapshot: >
+                {{ room_lights if restore_lights else room_lights | select('is_state', 'off') | list }}
+          - if: "{{ flash_snapshot | count > 0 }}"
+            then:
+              - action: scene.create
+                data:
+                  scene_id: "{{ scene_prefix ~ (now().timestamp() * 1000) | int }}"
+                  snapshot_entities: "{{ flash_snapshot }}"
+          - action: light.turn_on
+            target:
+              entity_id: "{{ room_lights }}"
+            data:
+              flash: long
+      - if: "{{ notify_service not in ['', none] }}"
+        then:
+          - action: "{{ notify_service }}"
+            data:
+              title: "Vacuum error"
+              message: >
+                {{ state_attr(vacuum_entity, 'friendly_name') or vacuum_entity }} reported an error
+                {{ 'in ' ~ room if room not in ['unknown', 'unavailable', ''] else '' }}.
+
+mode: queued
+max: 10
+max_exceeded: silent
